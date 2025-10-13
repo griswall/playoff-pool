@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hurd NFL Playoff Pool - Login</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --accent: #00d084;
+            --accent-hover: #00b371;
+            --bg-deep: #0f1115;
+            --bg-medium: #1c1e24;
+            --bg-light: #292d36;
+            --text-primary: #e5e7eb;
+            --text-muted: #9ca3af;
+            --error: #ef4444;
+            --yellow: #facc15;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-deep);
+            color: var(--text-primary);
+        }
+        .auth-form-container {
+            background-color: var(--bg-medium);
+            border: 1px solid var(--bg-light);
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+        .form-input {
+            background-color: var(--bg-light);
+            border: 1px solid var(--bg-light);
+            color: var(--text-primary);
+            border-radius: 0.5rem;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .form-input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(0, 208, 132, 0.3);
+        }
+        .form-button {
+            background-color: var(--accent);
+            color: #000;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            transition: background-color 0.2s;
+        }
+        .form-button:hover {
+            background-color: var(--accent-hover);
+        }
+        .switch-link {
+            color: var(--accent);
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .switch-link:hover {
+            text-decoration: underline;
+        }
+        .hidden-form {
+            display: none;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <div class="auth-form-container w-full max-w-md p-8 space-y-6">
+        
+        <!-- Login Form -->
+        <div id="login-form">
+            <h2 class="text-3xl font-extrabold text-center text-white">Welcome Back</h2>
+            <p class="text-center text-sm text-[var(--text-muted)] mt-2">Sign in to continue to the pool.</p>
+            <form class="mt-8 space-y-6">
+                <div>
+                    <label for="login-email" class="sr-only">Email address</label>
+                    <input id="login-email" name="email" type="email" autocomplete="email" required class="form-input w-full px-4 py-3" placeholder="Email address">
+                </div>
+                <div>
+                    <label for="login-password" class="sr-only">Password</label>
+                    <input id="login-password" name="password" type="password" autocomplete="current-password" required class="form-input w-full px-4 py-3" placeholder="Password">
+                </div>
+                <div>
+                    <button type="submit" class="form-button w-full py-3">
+                        Sign In
+                    </button>
+                </div>
+            </form>
+            <p class="mt-6 text-center text-sm text-[var(--text-muted)]">
+                Don't have an account?
+                <span id="show-signup" class="switch-link">Sign Up</span>
+            </p>
+        </div>
+
+        <!-- Sign-Up Form -->
+        <div id="signup-form" class="hidden-form">
+            <h2 class="text-3xl font-extrabold text-center text-white">Create an Account</h2>
+            <p class="text-center text-sm text-[var(--text-muted)] mt-2">Join the Hurd NFL Playoff Pool!</p>
+            <form class="mt-8 space-y-6">
+                <div>
+                    <label for="signup-email" class="sr-only">Email address</label>
+                    <input id="signup-email" name="email" type="email" autocomplete="email" required class="form-input w-full px-4 py-3" placeholder="Email address">
+                </div>
+                <div>
+                    <label for="signup-password" class="sr-only">Password</label>
+                    <input id="signup-password" name="password" type="password" required class="form-input w-full px-4 py-3" placeholder="Password">
+                </div>
+                <div>
+                    <label for="confirm-password" class="sr-only">Confirm Password</label>
+                    <input id="confirm-password" name="confirm-password" type="password" required class="form-input w-full px-4 py-3" placeholder="Confirm Password">
+                </div>
+                <div>
+                    <button type="submit" class="form-button w-full py-3">
+                        Sign Up
+                    </button>
+                </div>
+            </form>
+            <p class="mt-6 text-center text-sm text-[var(--text-muted)]">
+                Already have an account?
+                <span id="show-login" class="switch-link">Sign In</span>
+            </p>
+        </div>
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const loginForm = document.getElementById('login-form');
+            const signupForm = document.getElementById('signup-form');
+            const showSignupBtn = document.getElementById('show-signup');
+            const showLoginBtn = document.getElementById('show-login');
+
+            showSignupBtn.addEventListener('click', () => {
+                loginForm.classList.add('hidden-form');
+                signupForm.classList.remove('hidden-form');
+            });
+
+            showLoginBtn.addEventListener('click', () => {
+                signupForm.classList.add('hidden-form');
+                loginForm.classList.remove('hidden-form');
+            });
+        });
+    </script>
+</body>
+</html>

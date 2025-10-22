@@ -6,6 +6,7 @@
     <title>My Teams - Hurd NFL Playoff Pool</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <!-- 1. Import Supabase Library -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
@@ -66,8 +67,8 @@
         .team-body {
             max-height: 5000px;
             overflow: hidden;
-            transition: max-height 0.5s ease-in-out, padding 0.5s ease-in-out;
-            padding: 1rem;
+            transition: max-height 0.5s ease-in-out, padding 0.5s ease-in-out, border 0.5s ease-in-out;
+            padding: 1.5rem;
             background-color: var(--bg-medium);
             border: 1px solid var(--bg-light);
             border-top: 0;
@@ -78,6 +79,7 @@
             padding-top: 0;
             padding-bottom: 0;
             overflow: hidden;
+            border-width: 0;
         }
         .collapse-icon {
             transition: transform 0.3s ease;
@@ -107,6 +109,60 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.75);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal-box {
+            background-color: var(--bg-medium);
+            color: var(--text-primary);
+            padding: 2rem;
+            border-radius: 0.75rem;
+            border: 1px solid var(--bg-light);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            width: 90%;
+            max-width: 450px;
+            transform: scale(0.95);
+            transition: transform 0.3s ease;
+        }
+        .modal-overlay.active .modal-box {
+            transform: scale(1);
+        }
+        .prompt-button {
+            padding: 0.6rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            transition: background-color 0.2s ease;
+        }
+        .prompt-confirm {
+            background-color: var(--error);
+            color: #fff;
+        }
+        .prompt-confirm:hover {
+            background-color: #c53030;
+        }
+        .prompt-cancel {
+            background-color: var(--bg-light);
+            color: var(--text-primary);
+        }
+        .prompt-cancel:hover {
+            background-color: var(--bg-deep);
+        }
     </style>
 </head>
 <body class="min-h-screen">
@@ -125,7 +181,9 @@
                     <div id="user-auth-section" class="flex items-center">
                         <a href="login.html" id="login-button" class="nav-link bg-[var(--accent)] text-black font-semibold hidden">Login / Sign Up</a>
                         <div id="user-profile-section" class="hidden items-center space-x-4">
-                            <span id="user-email-display" class="text-sm text-[var(--text-muted)]">user@example.com</span>
+                            <a href="my-teams.html" id="user-email-link" class="text-sm text-[var(--accent)] hover:text-[var(--accent-hover)] font-semibold transition-colors">
+                                <span id="user-email-display">user@example.com</span>
+                            </a>
                             <button id="logout-button" class="text-sm font-semibold text-gray-400 hover:text-white transition-colors">Logout</button>
                         </div>
                     </div>
@@ -139,7 +197,7 @@
             <h2 class="text-2xl sm:text-3xl font-extrabold text-white mb-6">My Submitted Teams</h2>
             <div id="my-teams-container" class="space-y-4">
                 <!-- My Teams will be rendered here by JavaScript -->
-                <p id="no-teams-message" class="text-[var(--text-muted)]">You have not submitted any teams yet.</p>
+                <p id="no-teams-message" class="text-[var(--text-muted)]">You have not submitted any teams yet. <a href="index.html" class="text-[var(--accent)] hover:text-[var(--accent-hover)]">Go draft one!</a></p>
             </div>
         </div>
     </main>
@@ -147,6 +205,18 @@
     <footer class="text-center py-8 mt-12 border-t border-[var(--bg-light)]">
         <p class="text-[var(--text-muted)]">&copy; 2025 Hurd NFL Playoff Pool. All Rights Reserved.</p>
     </footer>
+
+    <!-- Confirmation Modal -->
+    <div id="confirm-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="confirm-modal-title">
+        <div class="modal-box">
+            <h3 id="confirm-modal-title" class="text-2xl font-bold text-white mb-4">Are you sure?</h3>
+            <p id="confirm-modal-message" class="text-gray-300 mb-6">This action cannot be undone.</p>
+            <div class="flex justify-end space-x-3">
+                <button id="confirm-modal-cancel-btn" class="prompt-button prompt-cancel">Cancel</button>
+                <button id="confirm-modal-confirm-btn" class="prompt-button prompt-confirm">Delete Team</button>
+            </div>
+        </div>
+    </div>
 
     <div id="loading-overlay" class="loading-overlay" role="status" aria-live="polite">
         <div class="loading-spinner" aria-label="Loading"></div>
@@ -161,6 +231,7 @@
 
         let supabaseClient;
         let currentUser;
+        let teamToDelete = null; // Store which team is pending deletion
 
         try {
             supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -179,7 +250,12 @@
             logoutButton: document.getElementById('logout-button'),
             loadingOverlay: document.getElementById('loading-overlay'),
             myTeamsContainer: document.getElementById('my-teams-container'),
-            noTeamsMessage: document.getElementById('no-teams-message')
+            noTeamsMessage: document.getElementById('no-teams-message'),
+            confirmModal: document.getElementById('confirm-modal'),
+            confirmModalTitle: document.getElementById('confirm-modal-title'),
+            confirmModalMessage: document.getElementById('confirm-modal-message'),
+            confirmModalConfirmBtn: document.getElementById('confirm-modal-confirm-btn'),
+            confirmModalCancelBtn: document.getElementById('confirm-modal-cancel-btn')
         };
 
         // =================================================================================
@@ -192,11 +268,43 @@
 
         function setupEventListeners() {
             uiElements.logoutButton?.addEventListener('click', handleLogout);
+            
+            // Event delegation for team headers and delete buttons
             uiElements.myTeamsContainer.addEventListener('click', (e) => {
                 const header = e.target.closest('.team-header');
+                const deleteButton = e.target.closest('.delete-team-btn');
+                const editButton = e.target.closest('.edit-team-btn');
+
+                if (deleteButton) {
+                    e.stopPropagation(); // Prevent header from collapsing
+                    const teamId = deleteButton.dataset.teamId;
+                    const teamName = deleteButton.dataset.teamName;
+                    showConfirmationModal(
+                        `Delete "${teamName}"?`,
+                        "Are you sure you want to delete this team? This action cannot be undone.",
+                        teamId
+                    );
+                    return;
+                }
+                
+                if (editButton) {
+                    e.stopPropagation(); // Prevent header from collapsing
+                    const teamId = editButton.dataset.teamId;
+                    // Redirect to index.html with the team_id as a URL parameter
+                    window.location.href = `index.html?edit_team_id=${teamId}`;
+                    return;
+                }
+
                 if (header) {
                     header.parentElement.classList.toggle('team-collapsed');
                 }
+            });
+
+            // Confirmation modal listeners
+            uiElements.confirmModalCancelBtn?.addEventListener('click', hideConfirmationModal);
+            uiElements.confirmModalConfirmBtn?.addEventListener('click', handleConfirmDelete);
+            uiElements.confirmModal?.addEventListener('click', (e) => {
+                if (e.target === uiElements.confirmModal) hideConfirmationModal();
             });
         }
 
@@ -244,10 +352,6 @@
         async function fetchMyTeams() {
             if (!currentUser) return;
 
-            // This is one advanced query!
-            // 1. It finds all teams matching the current user's ID.
-            // 2. It joins with 'team_players' to find all players on those teams.
-            // 3. It joins with 'players' to get the name, salary, etc. for each of those players.
             const { data, error } = await supabaseClient
                 .from('user_teams')
                 .select(`
@@ -274,10 +378,54 @@
                 return;
             }
 
-            if (data.length > 0) {
+            if (data && data.length > 0) {
                 uiElements.noTeamsMessage.style.display = 'none';
                 renderTeams(data);
+            } else {
+                uiElements.noTeamsMessage.style.display = 'block';
             }
+        }
+
+        // =================================================================================
+        // --- CORE TEAM LOGIC ---
+        // =================================================================================
+
+        function showConfirmationModal(title, message, teamId) {
+            teamToDelete = teamId;
+            uiElements.confirmModalTitle.textContent = title;
+            uiElements.confirmModalMessage.textContent = message;
+            uiElements.confirmModal.classList.add('active');
+            uiElements.confirmModalConfirmBtn.focus();
+        }
+
+        function hideConfirmationModal() {
+            teamToDelete = null;
+            uiElements.confirmModal.classList.remove('active');
+        }
+
+        async function handleConfirmDelete() {
+            if (!teamToDelete) return;
+            
+            showLoading(true);
+            hideConfirmationModal();
+
+            // RLS in Supabase ensures users can only delete their own teams.
+            // The 'team_players' are set to cascade delete.
+            const { error } = await supabaseClient
+                .from('user_teams')
+                .delete()
+                .eq('id', teamToDelete);
+
+            if (error) {
+                console.error("Error deleting team:", error.message);
+                alert("Error: Could not delete team. " + error.message);
+            } else {
+                // Refresh the list of teams
+                await fetchMyTeams();
+            }
+            
+            showLoading(false);
+            teamToDelete = null;
         }
 
         // =================================================================================
@@ -285,23 +433,31 @@
         // =================================================================================
 
         function renderTeams(teams) {
+            // Clear existing teams before rendering
+            uiElements.myTeamsContainer.innerHTML = '';
             const fragment = document.createDocumentFragment();
             
             teams.forEach((team, index) => {
                 const teamWrapper = document.createElement('div');
                 const isCollapsed = index !== 0; // Collapse all except the first
                 teamWrapper.className = `team-container ${isCollapsed ? 'team-collapsed' : ''}`;
+                teamWrapper.dataset.teamId = team.id;
                 
                 let totalSalary = 0;
-                const playerListItems = team.team_players.map(tp => {
-                    const player = tp.players;
-                    totalSalary += player.salary;
-                    return `
-                        <li class="flex justify-between items-center p-2 bg-[var(--bg-light)] rounded">
-                            <span class="font-semibold">${tp.roster_slot}: ${player.name}</span>
-                            <span class="text-sm text-[var(--text-muted)]">${player.position} - ${player.team} | <span class="text-[var(--yellow)]">${formatToMillions(player.salary)}</span></span>
-                        </li>
-                    `;
+                const playerListItems = team.team_players
+                    .sort((a, b) => (a.roster_slot > b.roster_slot ? 1 : -1)) // Sort players by slot
+                    .map(tp => {
+                        const player = tp.players;
+                        if (player) {
+                            totalSalary += player.salary;
+                            return `
+                                <li class="flex justify-between items-center p-2 bg-[var(--bg-light)] rounded">
+                                    <span class="font-semibold">${tp.roster_slot}: ${player.name}</span>
+                                    <span class="text-sm text-[var(--text-muted)]">${player.position} - ${player.team} | <span class="text-[var(--yellow)]">${formatToMillions(player.salary)}</span></span>
+                                </li>
+                            `;
+                        }
+                        return ''; // Handle case where player data might be missing
                 }).join('');
 
                 teamWrapper.innerHTML = `
@@ -310,7 +466,11 @@
                             <h3 class="text-xl font-bold">${team.team_name}</h3>
                             <p class="text-sm text-[var(--text-muted)]">Submitted: ${new Date(team.created_at).toLocaleString()} | Total Salary: <span class="text-[var(--yellow)]">${formatToMillions(totalSalary)}</span></p>
                         </div>
-                        <svg class="collapse-icon w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        <div class="flex items-center space-x-2">
+                             <button class="edit-team-btn text-sm font-semibold text-[var(--accent)] hover:text-[var(--accent-hover)] transition-colors p-2" data-team-id="${team.id}" aria-label="Edit team ${team.team_name}">Edit</button>
+                             <button class="delete-team-btn text-sm font-semibold text-[var(--error)] hover:text-red-400 transition-colors p-2" data-team-id="${team.id}" data-team-name="${team.team_name}" aria-label="Delete team ${team.team_name}">Delete</button>
+                             <svg class="collapse-icon w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </div>
                     </div>
                     <div class="team-body">
                         <ul class="space-y-2">

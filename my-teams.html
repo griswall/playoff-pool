@@ -352,6 +352,10 @@
         async function fetchMyTeams() {
             if (!currentUser) return;
 
+            // This is one advanced query!
+            // 1. It finds all teams matching the current user's ID.
+            // 2. It joins with 'team_players' to find all players on those teams.
+            // 3. It joins with 'players' to get the name, salary, etc. for each of those players.
             const { data, error } = await supabaseClient
                 .from('user_teams')
                 .select(`
@@ -391,7 +395,7 @@
         // =================================================================================
 
         function showConfirmationModal(title, message, teamId) {
-            teamToDelete = teamId;
+            teamToDelete = teamId; // Store the ID of the team to be deleted
             uiElements.confirmModalTitle.textContent = title;
             uiElements.confirmModalMessage.textContent = message;
             uiElements.confirmModal.classList.add('active');
@@ -399,7 +403,7 @@
         }
 
         function hideConfirmationModal() {
-            teamToDelete = null;
+            teamToDelete = null; // Clear the stored ID
             uiElements.confirmModal.classList.remove('active');
         }
 
@@ -407,6 +411,7 @@
             if (!teamToDelete) return;
             
             showLoading(true);
+            const teamId = teamToDelete; // Get the stored ID
             hideConfirmationModal();
 
             // RLS in Supabase ensures users can only delete their own teams.
@@ -414,18 +419,24 @@
             const { error } = await supabaseClient
                 .from('user_teams')
                 .delete()
-                .eq('id', teamToDelete);
+                .eq('id', teamId); // Use the stored teamId
 
             if (error) {
                 console.error("Error deleting team:", error.message);
                 alert("Error: Could not delete team. " + error.message);
             } else {
-                // Refresh the list of teams
-                await fetchMyTeams();
+                // Remove the team from the UI immediately for a faster feel
+                const teamElement = document.querySelector(`[data-team-id="${teamId}"]`);
+                teamElement?.remove();
+                
+                // Check if any teams are left
+                const remainingTeams = uiElements.myTeamsContainer.querySelector('.team-container');
+                if (!remainingTeams) {
+                    uiElements.noTeamsMessage.style.display = 'block';
+                }
             }
             
             showLoading(false);
-            teamToDelete = null;
         }
 
         // =================================================================================

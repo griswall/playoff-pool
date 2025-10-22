@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Teams - Hurd NFL Playoff Pool</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --accent: #00d084;
+            --accent-hover: #00b371;
+            --bg-deep: #0f1115;
+            --bg-medium: #1c1e24;
+            --bg-light: #292d36;
+            --text-primary: #e5e7eb;
+            --text-muted: #9ca3af;
+            --error: #ef4444;
+            --yellow: #facc15;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-deep);
+            color: var(--text-primary);
+        }
+        .main-header {
+            background-color: var(--bg-medium);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            border-bottom: 1px solid var(--bg-light);
+        }
+        .nav-link {
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+            color: var(--text-muted);
+        }
+        .nav-link.active {
+            background: var(--accent);
+            color: #000;
+            box-shadow: 0 0 0 3px rgba(0, 208, 132, 0.3);
+        }
+        .nav-link:hover:not(.active) {
+            background: var(--bg-light);
+            color: white;
+        }
+        .content-section {
+            background-color: var(--bg-medium);
+            border: 1px solid var(--bg-light);
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        .team-header {
+            background-color: var(--bg-light);
+            padding: 1rem 1.5rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .team-header:hover {
+            background-color: #3a404d;
+        }
+        .team-body {
+            max-height: 5000px;
+            overflow: hidden;
+            transition: max-height 0.5s ease-in-out, padding 0.5s ease-in-out;
+            padding: 1rem;
+            background-color: var(--bg-medium);
+            border: 1px solid var(--bg-light);
+            border-top: 0;
+            border-radius: 0 0 0.5rem 0.5rem;
+        }
+        .team-collapsed .team-body {
+            max-height: 0;
+            padding-top: 0;
+            padding-bottom: 0;
+            overflow: hidden;
+        }
+        .collapse-icon {
+            transition: transform 0.3s ease;
+        }
+        .team-collapsed .collapse-icon {
+            transform: rotate(-90deg);
+        }
+        .loading-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        .loading-overlay.active { display: flex; }
+        .loading-spinner {
+            border: 4px solid var(--bg-light);
+            border-top: 4px solid var(--accent);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <header class="main-header sticky top-0 z-30">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-20">
+                <h1 class="text-3xl font-extrabold text-white tracking-tight">Hurd NFL Playoff Pool</h1>
+                <div class="flex items-center space-x-6">
+                    <nav class="flex space-x-1 sm:space-x-2">
+                        <a href="index.html" id="nav-draft-team" class="nav-link">Draft Team</a>
+                        <a href="index.html#player-scores-view" id="nav-player-scores" class="nav-link">Player Scores</a>
+                        <a href="index.html#standings-view" id="nav-standings" class="nav-link">Standings</a>
+                        <a href="index.html#rules-view" id="nav-rules" class="nav-link">Rules</a>
+                    </nav>
+                    <div id="user-auth-section" class="flex items-center">
+                        <a href="login.html" id="login-button" class="nav-link bg-[var(--accent)] text-black font-semibold hidden">Login / Sign Up</a>
+                        <div id="user-profile-section" class="hidden items-center space-x-4">
+                            <span id="user-email-display" class="text-sm text-[var(--text-muted)]">user@example.com</span>
+                            <button id="logout-button" class="text-sm font-semibold text-gray-400 hover:text-white transition-colors">Logout</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mx-auto p-4 sm:p-6 lg:p-8">
+        <div class="content-section max-w-4xl mx-auto">
+            <h2 class="text-2xl sm:text-3xl font-extrabold text-white mb-6">My Submitted Teams</h2>
+            <div id="my-teams-container" class="space-y-4">
+                <!-- My Teams will be rendered here by JavaScript -->
+                <p id="no-teams-message" class="text-[var(--text-muted)]">You have not submitted any teams yet.</p>
+            </div>
+        </div>
+    </main>
+
+    <footer class="text-center py-8 mt-12 border-t border-[var(--bg-light)]">
+        <p class="text-[var(--text-muted)]">&copy; 2025 Hurd NFL Playoff Pool. All Rights Reserved.</p>
+    </footer>
+
+    <div id="loading-overlay" class="loading-overlay" role="status" aria-live="polite">
+        <div class="loading-spinner" aria-label="Loading"></div>
+    </div>
+
+    <script type="module">
+        // =================================================================================
+        // --- SUPABASE & APP INITIALIZATION ---
+        // =================================================================================
+        const SUPABASE_URL = 'https://jlsudfmhsmxmxpdtkrzr.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impsc3VkZm1oc214bXhwZHRrcnpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExNDQxNjEsImV4cCI6MjA3NjcyMDE2MX0.zJrz82WArsyFLybmGsxkOAr9HBoHrFhfa2pHwqvojxk';
+
+        let supabaseClient;
+        let currentUser;
+
+        try {
+            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        } catch (e) {
+            console.error("Error initializing Supabase.", e.message);
+            alert("Error: Could not connect to the database.");
+        }
+
+        // =================================================================================
+        // --- DOM ELEMENT REFERENCES ---
+        // =================================================================================
+        const uiElements = {
+            loginButton: document.getElementById('login-button'),
+            userProfileSection: document.getElementById('user-profile-section'),
+            userEmailDisplay: document.getElementById('user-email-display'),
+            logoutButton: document.getElementById('logout-button'),
+            loadingOverlay: document.getElementById('loading-overlay'),
+            myTeamsContainer: document.getElementById('my-teams-container'),
+            noTeamsMessage: document.getElementById('no-teams-message')
+        };
+
+        // =================================================================================
+        // --- APP INITIALIZATION ---
+        // =================================================================================
+        document.addEventListener('DOMContentLoaded', () => {
+            checkUser();
+            setupEventListeners();
+        });
+
+        function setupEventListeners() {
+            uiElements.logoutButton?.addEventListener('click', handleLogout);
+            uiElements.myTeamsContainer.addEventListener('click', (e) => {
+                const header = e.target.closest('.team-header');
+                if (header) {
+                    header.parentElement.classList.toggle('team-collapsed');
+                }
+            });
+        }
+
+        // =================================================================================
+        // --- AUTHENTICATION & DATA FETCHING ---
+        // =================================================================================
+
+        async function checkUser() {
+            showLoading(true);
+            if (!supabaseClient) {
+                alert("Database connection error. Please refresh.");
+                showLoading(false);
+                return;
+            }
+
+            const { data, error } = await supabaseClient.auth.getSession();
+            if (error || !data.session) {
+                window.location.href = "login.html"; // Redirect if no session
+            } else {
+                currentUser = data.session.user;
+                updateAuthUI(true, currentUser.email);
+                await fetchMyTeams();
+                showLoading(false);
+            }
+        }
+
+        function updateAuthUI(loggedIn, email = '') {
+            if (loggedIn) {
+                uiElements.loginButton?.classList.add('hidden');
+                uiElements.userProfileSection?.classList.remove('hidden');
+                if (uiElements.userEmailDisplay) uiElements.userEmailDisplay.textContent = email;
+            } else {
+                uiElements.loginButton?.classList.remove('hidden');
+                uiElements.userProfileSection?.classList.add('hidden');
+                if (uiElements.userEmailDisplay) uiElements.userEmailDisplay.textContent = '';
+            }
+        }
+
+        async function handleLogout() {
+            showLoading(true);
+            await supabaseClient.auth.signOut();
+            window.location.href = "login.html";
+        }
+
+        async function fetchMyTeams() {
+            if (!currentUser) return;
+
+            // This is one advanced query!
+            // 1. It finds all teams matching the current user's ID.
+            // 2. It joins with 'team_players' to find all players on those teams.
+            // 3. It joins with 'players' to get the name, salary, etc. for each of those players.
+            const { data, error } = await supabaseClient
+                .from('user_teams')
+                .select(`
+                    id,
+                    team_name,
+                    created_at,
+                    team_players (
+                        roster_slot,
+                        players (
+                            id,
+                            name,
+                            team,
+                            position,
+                            salary
+                        )
+                    )
+                `)
+                .eq('user_id', currentUser.id)
+                .order('created_at', { ascending: true });
+
+            if (error) {
+                console.error("Error fetching teams:", error.message);
+                uiElements.myTeamsContainer.innerHTML = `<p class="text-[var(--error)]">Error loading your teams.</p>`;
+                return;
+            }
+
+            if (data.length > 0) {
+                uiElements.noTeamsMessage.style.display = 'none';
+                renderTeams(data);
+            }
+        }
+
+        // =================================================================================
+        // --- UI RENDERING ---
+        // =================================================================================
+
+        function renderTeams(teams) {
+            const fragment = document.createDocumentFragment();
+            
+            teams.forEach((team, index) => {
+                const teamWrapper = document.createElement('div');
+                const isCollapsed = index !== 0; // Collapse all except the first
+                teamWrapper.className = `team-container ${isCollapsed ? 'team-collapsed' : ''}`;
+                
+                let totalSalary = 0;
+                const playerListItems = team.team_players.map(tp => {
+                    const player = tp.players;
+                    totalSalary += player.salary;
+                    return `
+                        <li class="flex justify-between items-center p-2 bg-[var(--bg-light)] rounded">
+                            <span class="font-semibold">${tp.roster_slot}: ${player.name}</span>
+                            <span class="text-sm text-[var(--text-muted)]">${player.position} - ${player.team} | <span class="text-[var(--yellow)]">${formatToMillions(player.salary)}</span></span>
+                        </li>
+                    `;
+                }).join('');
+
+                teamWrapper.innerHTML = `
+                    <div class="team-header flex justify-between items-center">
+                        <div>
+                            <h3 class="text-xl font-bold">${team.team_name}</h3>
+                            <p class="text-sm text-[var(--text-muted)]">Submitted: ${new Date(team.created_at).toLocaleString()} | Total Salary: <span class="text-[var(--yellow)]">${formatToMillions(totalSalary)}</span></p>
+                        </div>
+                        <svg class="collapse-icon w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </div>
+                    <div class="team-body">
+                        <ul class="space-y-2">
+                            ${playerListItems}
+                        </ul>
+                    </div>
+                `;
+                fragment.appendChild(teamWrapper);
+            });
+
+            uiElements.myTeamsContainer.appendChild(fragment);
+        }
+        
+        function showLoading(isLoading) {
+            uiElements.loadingOverlay?.classList.toggle('active', isLoading);
+        }
+
+        function formatToMillions(value) {
+            if (typeof value !== 'number' || isNaN(value)) return '$0.0M';
+            const millions = value / 1000000;
+            return `$${millions.toFixed(1)}M`;
+        }
+    </script>
+</body>
+</html>

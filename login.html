@@ -3,9 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hurd NFL Playoff Pool - Login</title>
+    <title>Login - Hurd NFL Playoff Pool</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <!-- 1. Import Supabase Library -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
             --accent: #00d084;
@@ -26,15 +28,13 @@
         .auth-form-container {
             background-color: var(--bg-medium);
             border: 1px solid var(--bg-light);
-            border-radius: 0.75rem;
             box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            border-radius: 0.75rem;
         }
         .form-input {
-            background-color: var(--bg-light);
+            background-color: var(--bg-deep);
             border: 1px solid var(--bg-light);
             color: var(--text-primary);
-            border-radius: 0.5rem;
-            transition: border-color 0.2s, box-shadow 0.2s;
         }
         .form-input:focus {
             outline: none;
@@ -45,102 +45,248 @@
             background-color: var(--accent);
             color: #000;
             font-weight: 700;
-            border-radius: 0.5rem;
             transition: background-color 0.2s;
+            border-radius: 0.5rem;
         }
         .form-button:hover {
             background-color: var(--accent-hover);
         }
-        .switch-link {
+        .form-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .toggle-link {
             color: var(--accent);
-            font-weight: 600;
             cursor: pointer;
+            font-weight: 600;
         }
-        .switch-link:hover {
-            text-decoration: underline;
+        .toggle-link:hover {
+            color: var(--accent-hover);
         }
-        .hidden-form {
-            display: none;
+        .error-message {
+            background-color: rgba(239, 68, 68, 0.1);
+            border: 1px solid var(--error);
+            color: var(--error);
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 500;
         }
     </style>
 </head>
 <body class="flex items-center justify-center min-h-screen p-4">
 
-    <div class="auth-form-container w-full max-w-md p-8 space-y-6">
+    <div class="w-full max-w-md mx-auto">
+        <h1 class="text-4xl font-extrabold text-white tracking-tight text-center mb-8">Hurd NFL Playoff Pool</h1>
         
-        <!-- Login Form -->
-        <div id="login-form">
-            <h2 class="text-3xl font-extrabold text-center text-white">Welcome Back</h2>
-            <p class="text-center text-sm text-[var(--text-muted)] mt-2">Sign in to continue to the pool.</p>
-            <form class="mt-8 space-y-6">
-                <div>
-                    <label for="login-email" class="sr-only">Email address</label>
-                    <input id="login-email" name="email" type="email" autocomplete="email" required class="form-input w-full px-4 py-3" placeholder="Email address">
-                </div>
-                <div>
-                    <label for="login-password" class="sr-only">Password</label>
-                    <input id="login-password" name="password" type="password" autocomplete="current-password" required class="form-input w-full px-4 py-3" placeholder="Password">
-                </div>
-                <div>
-                    <button type="submit" class="form-button w-full py-3">
-                        Sign In
-                    </button>
-                </div>
-            </form>
-            <p class="mt-6 text-center text-sm text-[var(--text-muted)]">
-                Don't have an account?
-                <span id="show-signup" class="switch-link">Sign Up</span>
-            </p>
-        </div>
+        <div class="auth-form-container p-8">
 
-        <!-- Sign-Up Form -->
-        <div id="signup-form" class="hidden-form">
-            <h2 class="text-3xl font-extrabold text-center text-white">Create an Account</h2>
-            <p class="text-center text-sm text-[var(--text-muted)] mt-2">Join the Hurd NFL Playoff Pool!</p>
-            <form class="mt-8 space-y-6">
+            <!-- Login Form -->
+            <form id="login-form" class="space-y-6">
+                <h2 class="text-2xl font-bold text-center text-white">Sign In</h2>
+                <div id="login-error-message" class="error-message hidden"></div>
                 <div>
-                    <label for="signup-email" class="sr-only">Email address</label>
-                    <input id="signup-email" name="email" type="email" autocomplete="email" required class="form-input w-full px-4 py-3" placeholder="Email address">
+                    <label for="login-email" class="block text-sm font-medium text-[var(--text-muted)]">Email</label>
+                    <input type="email" id="login-email" name="email" required autocomplete="email"
+                           class="form-input w-full p-3 mt-1 rounded-md">
                 </div>
                 <div>
-                    <label for="signup-password" class="sr-only">Password</label>
-                    <input id="signup-password" name="password" type="password" required class="form-input w-full px-4 py-3" placeholder="Password">
+                    <label for="login-password" class="block text-sm font-medium text-[var(--text-muted)]">Password</label>
+                    <input type="password" id="login-password" name="password" required autocomplete="current-password"
+                           class="form-input w-full p-3 mt-1 rounded-md">
                 </div>
-                <div>
-                    <label for="confirm-password" class="sr-only">Confirm Password</label>
-                    <input id="confirm-password" name="confirm-password" type="password" required class="form-input w-full px-4 py-3" placeholder="Confirm Password">
-                </div>
-                <div>
-                    <button type="submit" class="form-button w-full py-3">
-                        Sign Up
-                    </button>
-                </div>
+                <button type="submit" id="login-submit-button" class="form-button w-full py-3">Sign In</button>
+                <p class="text-sm text-center text-[var(--text-muted)]">
+                    Don't have an account? 
+                    <span id="toggle-to-signup" class="toggle-link">Sign up</span>
+                </p>
             </form>
-            <p class="mt-6 text-center text-sm text-[var(--text-muted)]">
-                Already have an account?
-                <span id="show-login" class="switch-link">Sign In</span>
-            </p>
-        </div>
 
+            <!-- Sign Up Form (Hidden by default) -->
+            <form id="signup-form" class="space-y-6 hidden">
+                <h2 class="text-2xl font-bold text-center text-white">Create Account</h2>
+                <div id="signup-error-message" class="error-message hidden"></div>
+                <div>
+                    <label for="signup-email" class="block text-sm font-medium text-[var(--text-muted)]">Email</label>
+                    <input type="email" id="signup-email" name="email" required autocomplete="email"
+                           class="form-input w-full p-3 mt-1 rounded-md">
+                </div>
+                <div>
+                    <label for="signup-password" class="block text-sm font-medium text-[var(--text-muted)]">Password</label>
+                    <input type="password" id="signup-password" name="password" required autocomplete="new-password" minlength="6"
+                           class="form-input w-full p-3 mt-1 rounded-md" placeholder="At least 6 characters">
+                </div>
+                <button type="submit" id="signup-submit-button" class="form-button w-full py-3">Create Account</button>
+                <p class="text-sm text-center text-[var(--text-muted)]">
+                    Already have an account? 
+                    <span id="toggle-to-login" class="toggle-link">Sign in</span>
+                </p>
+            </form>
+
+        </div>
     </div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const loginForm = document.getElementById('login-form');
-            const signupForm = document.getElementById('signup-form');
-            const showSignupBtn = document.getElementById('show-signup');
-            const showLoginBtn = document.getElementById('show-login');
+    <script type="module">
+        // =================================================================================
+        // --- SUPABASE & APP INITIALIZATION ---
+        // =================================================================================
+        
+        // Vercel will automatically replace these with the values you set in its dashboard.
+        const SUPABASE_URL = 'VITE_SUPABASE_URL';
+        const SUPABASE_ANON_KEY = 'VITE_SUPABASE_ANON_KEY';
+        
+        if (SUPABASE_URL === 'VITE_SUPABASE_URL' || SUPABASE_ANON_KEY === 'VITE_SUPABASE_ANON_KEY') {
+             console.warn("Supabase environment variables not set. Running in local-only mode. \nTo fix this for local development, create a .env file with VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY. \nThese variables are set automatically when deployed to Vercel.");
+        }
 
-            showSignupBtn.addEventListener('click', () => {
-                loginForm.classList.add('hidden-form');
-                signupForm.classList.remove('hidden-form');
-            });
+        let supabase;
+        try {
+            // This is the ES Module import, so we use supabase.createClient
+            supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        } catch (e) {
+            console.error("Error initializing Supabase.", e.message);
+            // Show error to user on login form
+            showLoginError("Could not connect to authentication service. Please try again later.");
+        }
+        
+        // =================================================================================
+        // --- DOM ELEMENT REFERENCES ---
+        // =================================================================================
+        const loginForm = document.getElementById('login-form');
+        const signupForm = document.getElementById('signup-form');
+        const toggleToSignup = document.getElementById('toggle-to-signup');
+        const toggleToLogin = document.getElementById('toggle-to-login');
+        const loginErrorMessage = document.getElementById('login-error-message');
+        const signupErrorMessage = document.getElementById('signup-error-message');
+        const loginSubmitButton = document.getElementById('login-submit-button');
+        const signupSubmitButton = document.getElementById('signup-submit-button');
 
-            showLoginBtn.addEventListener('click', () => {
-                signupForm.classList.add('hidden-form');
-                loginForm.classList.remove('hidden-form');
-            });
+        // =================================================================================
+        // --- EVENT LISTENERS ---
+        // =================================================================================
+        
+        // Toggle between login and sign-up forms
+        toggleToSignup.addEventListener('click', () => {
+            loginForm.classList.add('hidden');
+            signupForm.classList.remove('hidden');
         });
+
+        toggleToLogin.addEventListener('click', () => {
+            signupForm.classList.add('hidden');
+            loginForm.classList.remove('hidden');
+        });
+
+        // Handle Login Form Submission
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            setLoading(loginSubmitButton, true, "Signing In...");
+            hideLoginError();
+
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+
+            if (!supabase) {
+                showLoginError("Connection error. Please try again later.");
+                setLoading(loginSubmitButton, false, "Sign In");
+                return;
+            }
+
+            const { error } = await supabase.auth.signInWithPassword({ email, password });
+
+            if (error) {
+                showLoginError(error.message);
+                setLoading(loginSubmitButton, false, "Sign In");
+            } else {
+                window.location.href = "index.html"; // Redirect to main app on success
+            }
+        });
+
+        // Handle Sign Up Form Submission
+        signupForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            setLoading(signupSubmitButton, true, "Creating Account...");
+            hideSignupError();
+
+            const email = document.getElementById('signup-email').value;
+            const password = document.getElementById('signup-password').value;
+
+            if (!supabase) {
+                showSignupError("Connection error. Please try again later.");
+                setLoading(signupSubmitButton, false, "Create Account");
+                return;
+            }
+
+            const { data, error } = await supabase.auth.signUp({ email, password });
+
+            if (error) {
+                showSignupError(error.message);
+                setLoading(signupSubmitButton, false, "Create Account");
+            } else {
+                // For this app, we'll just log them in and redirect.
+                // A production app might require email confirmation.
+                setLoading(signupSubmitButton, false, "Success!");
+                window.location.href = "index.html"; // Redirect to main app
+            }
+        });
+
+        // =================================================================================
+        // --- UI HELPER FUNCTIONS ---
+        // =================================================================================
+
+        /**
+         * Shows an error message in the login form.
+         * @param {string} message - The error message to display.
+         */
+        function showLoginError(message) {
+            loginErrorMessage.textContent = message;
+            loginErrorMessage.classList.remove('hidden');
+        }
+
+        /** Hides the login form error message. */
+        function hideLoginError() {
+            loginErrorMessage.textContent = '';
+            loginErrorMessage.classList.add('hidden');
+        }
+
+        /**
+         * Shows an error message in the sign-up form.
+         * @param {string} message - The error message to display.
+         */
+        function showSignupError(message) {
+            signupErrorMessage.textContent = message;
+            signupErrorMessage.classList.remove('hidden');
+        }
+
+        /** Hides the sign-up form error message. */
+        function hideSignupError() {
+            signupErrorMessage.textContent = '';
+            signupErrorMessage.classList.add('hidden');
+        }
+        
+        /**
+         * Toggles the loading state of a submit button.
+         * @param {HTMLButtonElement} button - The button element.
+         * @param {boolean} isLoading - Whether to show the loading state.
+         * @param {string} text - The text to display on the button.
+         */
+        function setLoading(button, isLoading, text) {
+            if (!button) return;
+            button.disabled = isLoading;
+            if (isLoading) {
+                button.innerHTML = `
+                    <div class="flex items-center justify-center">
+                        <svg class="animate-spin -ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        ${text}
+                    </div>
+                `;
+            } else {
+                button.textContent = text;
+            }
+        }
+
     </script>
 </body>
 </html>

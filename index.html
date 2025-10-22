@@ -233,6 +233,43 @@
             background-color: var(--accent-hover);
         }
 
+        /* New Prompt Modal Styles */
+        .prompt-input {
+            background-color: var(--bg-deep);
+            border: 1px solid var(--bg-light);
+            color: var(--text-primary);
+            width: 100%;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            margin-top: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .prompt-input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(0, 208, 132, 0.3);
+        }
+        .prompt-button {
+            padding: 0.6rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            transition: background-color 0.2s ease;
+        }
+        .prompt-confirm {
+            background-color: var(--accent);
+            color: #000;
+        }
+        .prompt-confirm:hover {
+            background-color: var(--accent-hover);
+        }
+        .prompt-cancel {
+            background-color: var(--bg-light);
+            color: var(--text-primary);
+        }
+        .prompt-cancel:hover {
+            background-color: var(--bg-deep);
+        }
+
         /* Loading Spinner Styles */
         .loading-overlay {
             position: fixed;
@@ -413,11 +450,26 @@
         <p class="text-[var(--text-muted)]">&copy; 2025 Hurd NFL Playoff Pool. All Rights Reserved.</p>
     </footer>
 
-    <div id="alert-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <!-- Alert Modal -->
+    <div id="alert-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="alert-modal-title">
         <div class="modal-box text-center">
-            <h3 id="modal-title" class="text-2xl font-bold text-white mb-4">Drafting Error</h3>
-            <p id="modal-message" class="text-gray-300 mb-6">This is a default error message.</p>
-            <button id="modal-close-btn" class="modal-close-button">Got it</button>
+            <h3 id="alert-modal-title" class="text-2xl font-bold text-white mb-4">Drafting Error</h3>
+            <p id="alert-modal-message" class="text-gray-300 mb-6">This is a default error message.</p>
+            <button id="alert-modal-close-btn" class="modal-close-button">Got it</button>
+        </div>
+    </div>
+
+    <!-- New Team Name Prompt Modal -->
+    <div id="prompt-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="prompt-modal-title">
+        <div class="modal-box">
+            <h3 id="prompt-modal-title" class="text-2xl font-bold text-white mb-4">Name Your Team</h3>
+            <p id="prompt-modal-message" class="text-gray-300 mb-4">Please enter a name for this team (max 4 entries).</p>
+            <input type="text" id="prompt-modal-input" class="prompt-input" placeholder="e.g., Hurd's Champs">
+            <div id="prompt-modal-error" class="error-message hidden mb-4"></div>
+            <div class="flex justify-end space-x-3">
+                <button id="prompt-modal-cancel-btn" class="prompt-button prompt-cancel">Cancel</button>
+                <button id="prompt-modal-confirm-btn" class="prompt-button prompt-confirm">Submit Team</button>
+            </div>
         </div>
     </div>
 
@@ -432,20 +484,17 @@
         // --- SUPABASE & APP INITIALIZATION ---
         // =================================================================================
         
-        // **FIX: User must paste their keys here**
         const SUPABASE_URL = 'https://jlsudfmhsmxmxpdtkrzr.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impsc3VkZm1oc214bXhwZHRrcnpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExNDQxNjEsImV4cCI6MjA3NjcyMDE2MX0.zJrz82WArsyFLybmGsxkOAr9HBoHrFhfa2pHwqvojxk';
 
         let supabaseClient; 
         try {
-            // Check if the keys are still placeholders
             if (SUPABASE_URL.includes('PASTE_YOUR') || SUPABASE_ANON_KEY.includes('PASTE_YOUR')) {
                 throw new Error("Supabase keys not set. Please paste your URL and Key into the script.");
             }
             supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); 
         } catch (e) {
             console.error("Error initializing Supabase. App may not function correctly.", e.message);
-            // We will show a modal in checkUser if supabaseClient is not set
         }
 
         // =================================================================================
@@ -455,6 +504,7 @@
             INITIAL_SALARY_CAP: 38500000,
             MAX_PLAYERS_PER_TEAM: 3,
             ROSTER_SIZE: 10,
+            MAX_ENTRIES_PER_USER: 4, // New constant for entry cap
             ANIMATION_DURATION: 500, 
             DEBOUNCE_DELAY: 50,     
             MAX_SALARY_PERCENTAGE: 100,
@@ -467,7 +517,6 @@
         const appState = {
             currentUser: null,
             currentSession: null,
-            currentTeamName: `My Team ${Math.floor(Math.random() * 1000)}`, 
             currentSalarySpent: 0,
             draftedPlayers: {}, 
             roster: {
@@ -585,9 +634,9 @@
             navLinks: document.querySelectorAll('.nav-link'),
             tabContents: document.querySelectorAll('.tab-content'),
             alertModal: document.getElementById('alert-modal'),
-            modalTitle: document.getElementById('modal-title'),
-            modalMessage: document.getElementById('modal-message'),
-            modalCloseBtn: document.getElementById('modal-close-btn'),
+            modalTitle: document.getElementById('alert-modal-title'),
+            modalMessage: document.getElementById('alert-modal-message'),
+            modalCloseBtn: document.getElementById('alert-modal-close-btn'),
             subHeader: document.getElementById('sub-header'),
             loadingOverlay: document.getElementById('loading-overlay'),
             playerScoresList: document.getElementById('player-scores-list'),
@@ -596,7 +645,15 @@
             loginButton: document.getElementById('login-button'),
             userProfileSection: document.getElementById('user-profile-section'),
             userEmailDisplay: document.getElementById('user-email-display'),
-            logoutButton: document.getElementById('logout-button')
+            logoutButton: document.getElementById('logout-button'),
+            // New Prompt Modal Elements
+            promptModal: document.getElementById('prompt-modal'),
+            promptModalTitle: document.getElementById('prompt-modal-title'),
+            promptModalMessage: document.getElementById('prompt-modal-message'),
+            promptModalInput: document.getElementById('prompt-modal-input'),
+            promptModalError: document.getElementById('prompt-modal-error'),
+            promptModalConfirmBtn: document.getElementById('prompt-modal-confirm-btn'),
+            promptModalCancelBtn: document.getElementById('prompt-modal-cancel-btn')
         };
 
         // =================================================================================
@@ -613,10 +670,20 @@
             uiElements.navLinks?.forEach(link => {
                 link.addEventListener('click', handleNavLinkClick);
             });
+            
+            // Alert Modal Events
             uiElements.modalCloseBtn?.addEventListener('click', () => uiElements.alertModal?.classList.remove('active'));
             uiElements.alertModal?.addEventListener('click', (e) => {
                 if (e.target === uiElements.alertModal) uiElements.alertModal.classList.remove('active');
             });
+
+            // Prompt Modal Events
+            uiElements.promptModalCancelBtn?.addEventListener('click', hidePromptModal);
+            uiElements.promptModalConfirmBtn?.addEventListener('click', handleConfirmSubmission);
+            uiElements.promptModal?.addEventListener('click', (e) => {
+                if (e.target === uiElements.promptModal) hidePromptModal();
+            });
+
             uiElements.playerPoolContainer?.addEventListener('keydown', (event) => {
                  if ((event.key === 'Enter' || event.key === ' ') && event.target.closest('.player-card')) {
                      event.preventDefault();
@@ -624,7 +691,7 @@
                  }
             });
             uiElements.logoutButton?.addEventListener('click', handleLogout);
-            uiElements.submitTeamButton?.addEventListener('click', handleSubmitTeam);
+            uiElements.submitTeamButton?.addEventListener('click', handleSubmitTeamClick);
         }
         
         function initializeUI() {
@@ -724,56 +791,108 @@
         // --- CORE DRAFTING LOGIC ---
         // =================================================================================
         
-        async function handleSubmitTeam() {
+        /**
+         * Fired when the user clicks the "Submit Team" button.
+         * Validates the roster and then shows the "Name Your Team" modal.
+         */
+        function handleSubmitTeamClick() {
             if (Object.keys(appState.draftedPlayers).length !== CONSTANTS.ROSTER_SIZE) {
                 showAlertModal("Roster Incomplete", "You must draft 10 players to submit your team.");
                 return;
             }
+            // Roster is full, ask for team name
+            showPromptModal('Name Your Team', 'Enter a name for this entry:');
+        }
 
-            showLoadingState();
-            
-            const { data: teamData, error: teamError } = await supabaseClient
-                .from('user_teams')
-                .insert({ 
-                    user_id: appState.currentUser.id,
-                    team_name: appState.currentTeamName 
-                })
-                .select() 
-                .single(); 
-
-            if (teamError) {
-                console.error("Error creating team:", teamError.message);
-                showAlertModal("Submit Error", `Could not create your team: ${teamError.message}`);
-                hideLoadingState();
+        /**
+         * Fired when the user confirms the team name in the prompt modal.
+         * Handles the final logic of checking entry limits and saving to Supabase.
+         */
+        async function handleConfirmSubmission() {
+            const teamName = uiElements.promptModalInput.value.trim();
+            if (!teamName) {
+                uiElements.promptModalError.textContent = "Team name cannot be empty.";
+                uiElements.promptModalError.classList.remove('hidden');
                 return;
             }
 
-            const newTeamId = teamData.id;
-            const playersToInsert = Object.keys(appState.roster).filter(slotKey => appState.roster[slotKey]).map(slotKey => {
-                const player = appState.roster[slotKey];
-                return {
-                    team_id: newTeamId,
-                    player_id: player.id,
-                    roster_slot: slotKey
-                };
-            });
+            showLoadingState();
+            hidePromptModal();
 
-            const { error: playersError } = await supabaseClient
-                .from('team_players')
-                .insert(playersToInsert);
+            try {
+                // 1. Check entry count
+                const { count, error: countError } = await supabaseClient
+                    .from('user_teams')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('user_id', appState.currentUser.id);
 
-            if (playersError) {
-                console.error("Error saving roster:", playersError.message);
-                showAlertModal("Submit Error", `Your team was created but we could not save your players: ${playersError.message}. Please contact support.`);
-            } else {
-                showAlertModal("Success!", "Your team has been submitted. Good luck!");
-                uiElements.submitTeamButton.disabled = true;
-                uiElements.submitTeamButton.setAttribute('aria-disabled', 'true');
-                uiElements.submitTeamButton.textContent = "Team Submitted!";
+                if (countError) throw countError;
+
+                // 2. Enforce 4-team cap
+                if (count >= CONSTANTS.MAX_ENTRIES_PER_USER) {
+                    throw new Error(`You have reached the ${CONSTANTS.MAX_ENTRIES_PER_USER}-team entry limit.`);
+                }
+                
+                // 3. Create new entry in 'user_teams'
+                const { data: teamData, error: teamError } = await supabaseClient
+                    .from('user_teams')
+                    .insert({ 
+                        user_id: appState.currentUser.id,
+                        team_name: teamName
+                    })
+                    .select() 
+                    .single(); 
+
+                if (teamError) throw teamError;
+
+                const newTeamId = teamData.id;
+
+                // 4. Prepare 'team_players' entries
+                const playersToInsert = Object.keys(appState.roster)
+                    .filter(slotKey => appState.roster[slotKey])
+                    .map(slotKey => {
+                        const player = appState.roster[slotKey];
+                        return {
+                            team_id: newTeamId,
+                            player_id: player.id,
+                            roster_slot: slotKey
+                        };
+                    });
+
+                // 5. Insert all players into 'team_players'
+                const { error: playersError } = await supabaseClient
+                    .from('team_players')
+                    .insert(playersToInsert);
+
+                if (playersError) throw playersError;
+
+                // 6. Success!
+                showAlertModal("Success!", `Your team "${teamName}" has been submitted. Good luck!`);
+                resetDraftState(); // Clear the board for a new entry
+
+            } catch (error) {
+                console.error("Error submitting team:", error.message);
+                showAlertModal("Submit Error", error.message);
+            } finally {
+                hideLoadingState();
             }
-            
-            hideLoadingState();
         }
+
+        /**
+         * Resets the draft state to allow for a new team to be drafted.
+         */
+        function resetDraftState() {
+            appState.currentSalarySpent = 0;
+            appState.draftedPlayers = {};
+            appState.roster = { 
+                QB: null, RB1: null, RB2: null, RB3: null, 
+                WR1: null, WR2: null, WR3: null,
+                FLEX: null, DST: null, K: null
+            };
+            appState.teamCounts = {};
+            triggerUpdateAllUI(); // Update the UI to show the empty board
+        }
+
 
         function handlePlayerPoolClick(event) {
             const card = event.target.closest('.player-card');
@@ -1176,6 +1295,27 @@
             uiElements.modalMessage.textContent = message;
             uiElements.alertModal.classList.add('active');
             safeSetTimeout(() => uiElements.modalCloseBtn.focus(), 50);
+        }
+
+        /**
+         * Shows the modal for entering a team name.
+         * @param {string} title - The title for the modal.
+         * @param {string} message - The message body for the modal.
+         */
+        function showPromptModal(title, message) {
+            uiElements.promptModalTitle.textContent = title;
+            uiElements.promptModalMessage.textContent = message;
+            uiElements.promptModalInput.value = ''; // Clear previous input
+            uiElements.promptModalError.classList.add('hidden'); // Hide old errors
+            uiElements.promptModal.classList.add('active');
+            safeSetTimeout(() => uiElements.promptModalInput.focus(), 50);
+        }
+
+        /**
+         * Hides the modal for entering a team name.
+         */
+        function hidePromptModal() {
+            uiElements.promptModal.classList.remove('active');
         }
 
         function renderSubHeader() {

@@ -6,6 +6,8 @@
     <title>Hurd NFL Playoff Pool</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <!-- 1. Import Supabase Library -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
             --accent: #00d084;
@@ -254,11 +256,13 @@
             margin-right: 0.5rem;
             border: 2px solid var(--accent);
             background-color: var(--bg-light);
-            align-items: center;       /* take effect when visible */
+            display: flex;             /* Keep flex properties */
+            align-items: center;
             justify-content: center;
             font-size: 0.75rem;
             font-weight: bold;
             color: var(--text-muted);
+            display: none; /* ** Add display:none here ** */
         }
         .player-fallback-initial.is-visible {
             display: flex;             /* ** only shown when JS adds this class ** */
@@ -283,7 +287,7 @@
                     <div id="user-auth-section" class="flex items-center">
                         <!-- Logged Out View (default) -->
                         <a href="login.html" id="login-button" class="nav-link bg-[var(--accent)] text-black font-semibold">Login / Sign Up</a>
-
+    
                         <!-- Logged In View (hidden by default) -->
                         <div id="user-profile-section" class="hidden items-center space-x-4">
                             <span id="user-email-display" class="text-sm text-[var(--text-muted)]">user@example.com</span>
@@ -348,7 +352,7 @@
                 </table>
             </div>
         </div>
-
+        
         <div id="rules-view" class="tab-content content-section">
             <h2 class="text-2xl sm:text-3xl font-extrabold text-white mb-6">Pool Rules</h2>
             <div class="prose prose-invert max-w-none text-gray-300 space-y-4">
@@ -410,7 +414,30 @@
         <div class="loading-spinner" aria-label="Loading"></div>
     </div>
 
-    <script>
+
+    <script type="module">
+        // =================================================================================
+        // --- SUPABASE & APP INITIALIZATION ---
+        // =================================================================================
+        
+        // 2. Initialize Supabase
+        // Vercel will automatically replace these with the values you set in its dashboard.
+        const SUPABASE_URL = 'VITE_SUPABASE_URL';
+        const SUPABASE_ANON_KEY = 'VITE_SUPABASE_ANON_KEY';
+
+        // Check if the variables are set (they will be 'VITE_...' in local dev, but replaced on Vercel)
+        if (SUPABASE_URL === 'VITE_SUPABASE_URL' || SUPABASE_ANON_KEY === 'VITE_SUPABASE_ANON_KEY') {
+             console.warn("Supabase environment variables not set. Running in local-only mode. \nTo fix this for local development, create a .env file with VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY. \nThese variables are set automatically when deployed to Vercel.");
+        }
+
+        let supabase;
+        try {
+            // This is the ES Module import, so we use supabase.createClient
+            supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        } catch (e) {
+            console.error("Error initializing Supabase. App may not function correctly.", e.message);
+        }
+
         // =================================================================================
         // --- CONSTANTS ---
         // =================================================================================
@@ -418,25 +445,29 @@
             INITIAL_SALARY_CAP: 38500000,
             MAX_PLAYERS_PER_TEAM: 3,
             ROSTER_SIZE: 10,
-            ANIMATION_DURATION: 500,
-            DEBOUNCE_DELAY: 50,
+            ANIMATION_DURATION: 500, // Duration for draft flash animation
+            DEBOUNCE_DELAY: 50,     // Delay (ms) for debouncing UI updates
             MAX_SALARY_PERCENTAGE: 100,
-            PERFORMANCE_THRESHOLD: 100
+            PERFORMANCE_THRESHOLD: 100 // ms - Log warning if function exceeds this duration
         };
 
         // =================================================================================
         // --- STATE MANAGEMENT ---
         // =================================================================================
         const appState = {
+            currentUser: null,
+            currentSession: null,
+            currentTeamName: `My Team ${Math.floor(Math.random() * 1000)}`, // Placeholder
             currentSalarySpent: 0,
-            draftedPlayers: {},
-            roster: {
-                QB: null, RB1: null, RB2: null, RB3: null,
+            draftedPlayers: {}, // O(1) lookup: { playerId: playerObject }
+            roster: { // Current roster slots
+                QB: null, RB1: null, RB2: null, RB3: null, 
                 WR1: null, WR2: null, WR3: null,
                 FLEX: null, DST: null, K: null
             },
-            teamCounts: {},
-            playersById: {}
+            teamCounts: {}, // { teamAbbr: count }
+            playersById: {}, // O(1) lookup: { playerId: playerObject }
+            allPlayersByPosition: {} // Will be filled from database
         };
 
         const timeouts = new Set();
@@ -445,10 +476,18 @@
         // =================================================================================
         // --- UTILITY FUNCTIONS ---
         // =================================================================================
-
+        
+        /**
+         * Safely sets a timeout and tracks it for potential cleanup.
+         * @param {function} callback - The function to execute after the delay.
+         * @param {number} delay - The delay in milliseconds.
+         * @returns {number} The timeout ID.
+         */
         function safeSetTimeout(callback, delay) {
             const id = setTimeout(() => {
-                try { callback(); } catch (error) {
+                try {
+                    callback();
+                } catch (error) {
                     console.error("Error in safeSetTimeout callback:", error);
                 } finally {
                     timeouts.delete(id);
@@ -458,63 +497,89 @@
             return id;
         }
 
+        /**
+         * Clears all tracked timeouts. Important for preventing memory leaks on page unload
+         * or potentially during complex UI updates if needed (though not strictly necessary here yet).
+         */
         function clearAllTimeouts() {
             timeouts.forEach(id => clearTimeout(id));
             timeouts.clear();
             if (updateUITimeout) clearTimeout(updateUITimeout);
         }
+        // Basic cleanup on page unload
         window.addEventListener('beforeunload', clearAllTimeouts);
 
+        /**
+         * Wraps a function execution with performance measurement.
+         * Logs a warning if the execution exceeds CONSTANTS.PERFORMANCE_THRESHOLD.
+         * @param {string} label - A descriptive label for the operation being measured.
+         * @param {function} fn - The function to execute and measure.
+         * @returns {*} The result of the function execution.
+         */
         function measurePerformance(label, fn) {
             const start = performance.now();
             let result;
-            try { result = fn(); } catch (error) {
-                console.error(`Error during "${label}":`, error);
-                throw error;
+            try {
+                result = fn();
+            } catch (error) {
+                console.error(`Error during performance measurement of "${label}":`, error);
+                throw error; // Re-throw the error after logging
             }
             const duration = performance.now() - start;
             if (duration > CONSTANTS.PERFORMANCE_THRESHOLD) {
                 console.warn(`Slow operation: ${label} took ${duration.toFixed(2)}ms`);
             }
+            // console.log(`${label} took ${duration.toFixed(2)}ms`); // Uncomment for detailed timing
             return result;
         }
 
+        /**
+         * Converts a numeric salary value into a formatted string (e.g., "$6.5M").
+         * Includes checks for valid number input.
+         * @param {number} value The numeric salary.
+         * @returns {string} The formatted salary string.
+         */
         function formatToMillions(value) {
             if (typeof value !== 'number' || isNaN(value)) {
-                console.warn(`Invalid value passed to formatToMillions: ${value}`);
-                return '$0.0M';
+                 console.warn(`Invalid value passed to formatToMillions: ${value}`);
+                 return '$0.0M';
             }
             const millions = value / 1000000;
             return `$${millions.toFixed(1)}M`;
         }
 
+        /**
+         * Debounces the main UI update function to prevent rapid, unnecessary re-renders.
+         */
         function triggerUpdateAllUI() {
-            if (updateUITimeout) clearTimeout(updateUITimeout);
+            if (updateUITimeout) {
+                clearTimeout(updateUITimeout); // Clear existing timeout if new update comes quickly
+            }
+            // Set a new timeout
             updateUITimeout = safeSetTimeout(() => {
                 measurePerformance('updateAllUI', () => {
                     updateSalaryUI();
                     updateRosterCount();
-                    renderRosterSlots();
-                    updatePlayerAvailabilityInPool();
-                    checkRosterFull();
+                    renderRosterSlots(); // Re-render roster slots
+                    updatePlayerAvailabilityInPool(); // Update player card states
+                    checkRosterFull(); // Check submit button state
                 });
             }, CONSTANTS.DEBOUNCE_DELAY);
         }
 
-        function showLoadingState() {
+        /** Shows the loading overlay. */
+        function showLoadingState(show = true) {
             const overlay = document.getElementById('loading-overlay');
-            if (overlay) overlay.classList.add('active');
+            if (overlay) overlay.classList.toggle('active', show);
         }
 
-        function hideLoadingState() {
-            const overlay = document.getElementById('loading-overlay');
-            if (overlay) overlay.classList.remove('active');
-        }
+        /** Hides the loading overlay. */
+        function hideLoadingState() { showLoadingState(false); }
 
         // =================================================================================
         // --- DATA CONFIGURATION ---
         // =================================================================================
-
+        // NOTE: Player data is now fetched from Supabase, not hardcoded here.
         const TEAMS = {
             "BAL": { name: "Baltimore Ravens" }, "BUF": { name: "Buffalo Bills" },
             "CLE": { name: "Cleveland Browns" }, "DAL": { name: "Dallas Cowboys" },
@@ -524,7 +589,6 @@
             "PHI": { name: "Philadelphia Eagles" }, "PIT": { name: "Pittsburgh Steelers" },
             "SF": { name: "San Francisco 49ers" }, "TB": { name: "Tampa Bay Buccaneers" }
         };
-
         const rosterSlotConfig = {
             QB: { count: 1, display: "QB", slots: ["QB"] },
             RB: { count: 3, display: "RB", slots: ["RB1", "RB2", "RB3"] },
@@ -534,157 +598,6 @@
             K: { count: 1, display: "K", slots: ["K"]},
             TE: { count: 0, display: "TE", slots: [] }
         };
-
-        const allPlayersByPosition = {
-            QB: [
-                { id: "3918298", name: "Josh Allen", team: "BUF", salary: 6500000 },
-                { id: "3916387", name: "Lamar Jackson", team: "BAL", salary: 6000000 },
-                { id: "4361741", name: "Brock Purdy", team: "SF", salary: 6000000 },
-                { id: "2577417", name: "Dak Prescott", team: "DAL", salary: 6000000 },
-                { id: "3139477", name: "Patrick Mahomes", team: "KC", salary: 5000000 },
-                { id: "4040715", name: "Jalen Hurts", team: "PHI", salary: 5000000 },
-                { id: "4241479", name: "Tua Tagovailoa", team: "MIA", salary: 4500000 },
-                { id: "3046779", name: "Jared Goff", team: "DET", salary: 4500000 },
-                { id: "12483", name: "Matthew Stafford", team: "LAR", salary: 4000000 },
-                { id: "11252", name: "Joe Flacco", team: "CLE", salary: 3500000 },
-                { id: "4432577", name: "C.J. Stroud", team: "HOU", salary: 3500000 },
-                { id: "4036378", name: "Jordan Love", team: "GB", salary: 3000000 },
-                { id: "3052587", name: "Baker Mayfield", team: "TB", salary: 2500000 },
-                { id: "3116407", name: "Mason Rudolph", team: "PIT", salary: 2000000 }
-            ].map(p => ({ ...p, position: 'QB' })),
-            RB: [
-                { id: "3117251", name: "Christian McCaffrey", team: "SF", salary: 6500000 }, { id: "4379399", name: "James Cook", team: "BUF", salary: 5000000 },
-                { id: "3916148", name: "Tony Pollard", team: "DAL", salary: 5000000 }, { id: "2576414", name: "Raheem Mostert", team: "MIA", salary: 4500000 },
-                { id: "3053668", name: "Gus Edwards", team: "BAL", salary: 4500000 }, { id: "4035538", name: "David Montgomery", team: "DET", salary: 4500000 },
-                { id: "4429795", name: "Jahmyr Gibbs", team: "DET", salary: 4500000 }, { id: "4361529", name: "Isiah Pacheco", team: "KC", salary: 4500000 },
-                { id: "4259545", name: "D'Andre Swift", team: "PHI", salary: 4500000 }, { id: "4429160", name: "De'Von Achane", team: "MIA", salary: 4000000 },
-                { id: "4038441", name: "Justice Hill", team: "BAL", salary: 4000000 }, { id: "4372019", name: "Jerome Ford", team: "CLE", salary: 4000000 },
-                { id: "3042519", name: "Aaron Jones", team: "GB", salary: 4000000 }, { id: "4040761", name: "Devin Singletary", team: "HOU", salary: 4000000 },
-                { id: "4430737", name: "Kyren Williams", team: "LAR", salary: 4000000 }, { id: "4697815", name: "Rachaad White", team: "TB", salary: 4000000 },
-                { id: "3059915", name: "Kareem Hunt", team: "CLE", salary: 3500000 }, { id: "4239934", name: "AJ Dillon", team: "GB", salary: 3500000 },
-                { id: "4360238", name: "Dameon Pierce", team: "HOU", salary: 3500000 }, { id: "4242214", name: "Clyde Edwards-Helaire", team: "KC", salary: 3500000 },
-                { id: "4371733", name: "Kenneth Gainwell", team: "PHI", salary: 3500000 }, { id: "4241457", name: "Najee Harris", team: "PIT", salary: 3500000 },
-                { id: "4569987", name: "Jaylen Warren", team: "PIT", salary: 3500000 }, { id: "4241555", name: "Elijah Mitchell", team: "SF", salary: 3500000 },
-                { id: "3051392", name: "Leonard Fournette", team: "BUF", salary: 3500000 }, { id: "3042778", name: "Dalvin Cook", team: "BAL", salary: 3000000 },
-                { id: "3915411", name: "Ty Johnson", team: "BUF", salary: 3000000 }, { id: "15841", name: "Latavius Murray", team: "BUF", salary: 3000000 },
-                { id: "4249836", name: "Pierre Strong Jr.", team: "CLE", salary: 3000000 }, { id: "4038815", name: "Rico Dowdle", team: "DAL", salary: 3000000 },
-                { id: "16773", name: "Jerick McKinnon", team: "KC", salary: 3000000 }, { id: "3115378", name: "Royce Freeman", team: "LAR", salary: 3000000 },
-                { id: "3139410", name: "Jeff Wilson Jr.", team: "MIA", salary: 3000000 }, { id: "4360569", name: "Jordan Mason", team: "SF", salary: 3000000 },
-                { id: "3122184", name: "Chase Edmonds", team: "TB", salary: 3000000 }, { id: "3068994", name: "Patrick Ricard", team: "BAL", salary: 2500000 },
-                { id: "2576622", name: "Melvin Gordon", team: "BAL", salary: 2500000 }, { id: "patrick_gilliam_jr", name: "Patrick Gilliam", team: "BUF", salary: 2500000 },
-                { id: "4431453", name: "Deuce Vaughn", team: "DAL", salary: 2500000 }, { id: "4421446", name: "Craig Reynolds", team: "DET", salary: 2500000 },
-                { id: "4039358", name: "Patrick Taylor Jr.", team: "GB", salary: 2500000 }, { id: "2983509", name: "Dare Ogunbowale", team: "HOU", salary: 2500000 },
-                { id: "3122137", name: "Andrew Beck", team: "HOU", salary: 2500000 }, { id: "4035889", name: "La'Mical Perine", team: "KC", salary: 2500000 },
-                { id: "4243003", name: "Ronnie Rivers", team: "LAR", salary: 2500000 }, { id: "4430799", name: "Zach Evans", team: "LAR", salary: 2500000 },
-                { id: "3917320", name: "Alec Ingold", team: "MIA", salary: 2500000 }, { id: "3149687", name: "Chris Brooks", team: "MIA", salary: 2500000 },
-                { id: "3116167", name: "Boston Scott", team: "PHI", salary: 2500000 }, { id: "15858", name: "Kyle Juszczyk", team: "SF", salary: 2500000 },
-                { id: "4430871", name: "Sean Tucker", team: "TB", salary: 2500000 }
-            ].map(p => ({ ...p, position: 'RB' })),
-            WR: [
-                { id: "4241389", name: "CeeDee Lamb", team: "DAL", salary: 6000000 }, { id: "2976212", name: "Stefon Diggs", team: "BUF", salary: 5500000 },
-                { id: "4374302", name: "Amon-Ra St. Brown", team: "DET", salary: 5500000 }, { id: "3116406", name: "Tyreek Hill", team: "MIA", salary: 5500000 },
-                { id: "3126486", name: "Deebo Samuel", team: "SF", salary: 5500000 }, { id: "4360438", name: "Brandon Aiyuk", team: "SF", salary: 5500000 },
-                { id: "4047646", name: "A.J. Brown", team: "PHI", salary: 5000000 }, { id: "4429615", name: "Zay Flowers", team: "BAL", salary: 5000000 },
-                { id: "4241478", name: "DeVonta Smith", team: "PHI", salary: 4500000 }, { id: "4372016", name: "Jaylen Waddle", team: "MIA", salary: 4500000 },
-                { id: "4045163", name: "Gabe Davis", team: "BUF", salary: 4500000 }, { id: "16731", name: "Brandin Cooks", team: "DAL", salary: 4500000 },
-                { id: "4428331", name: "Rashee Rice", team: "KC", salary: 4500000 }, { id: "4426515", name: "Puka Nacua", team: "LAR", salary: 4500000 },
-                { id: "2977187", name: "Cooper Kupp", team: "LAR", salary: 4500000 }, { id: "16733", name: "Odell Beckham Jr.", team: "BAL", salary: 4000000 },
-                { id: "4360939", name: "Rashod Bateman", team: "BAL", salary: 4000000 }, { id: "4373678", name: "Khalil Shakir", team: "BUF", salary: 4000000 },
-                { id: "2576413", name: "Amari Cooper", team: "CLE", salary: 4000000 }, { id: "3115306", name: "Josh Reynolds", team: "DET", salary: 4000000 },
-                { id: "4258173", name: "Nico Collins", team: "HOU", salary: 4000000 }, { id: "4426354", name: "George Pickens", team: "PIT", salary: 4000000 },
-                { id: "16737", name: "Mike Evans", team: "TB", salary: 4000000 }, { id: "2577213", name: "Nelson Agholor", team: "BAL", salary: 3500000 },
-                { id: "4372414", name: "Elijah Moore", team: "CLE", salary: 3500000 }, { id: "4036348", name: "Michael Gallup", team: "DAL", salary: 3500000 },
-                { id: "2973405", name: "Kalif Raymond", team: "DET", salary: 3500000 }, { id: "4426388", name: "Jameson Williams", team: "DET", salary: 3500000 },
-                { id: "4362249", name: "Jayden Reed", team: "GB", salary: 3500000 }, { id: "4248528", name: "Christian Watson", team: "GB", salary: 3500000 },
-                { id: "4361432", name: "Romeo Doubs", team: "GB", salary: 3500000 }, { id: "4428850", name: "Dontayvion Wicks", team: "GB", salary: 3500000 },
-                { id: "3051738", name: "Marquez Valdes-Scantling", team: "KC", salary: 3500000 }, { id: "3118892", name: "Justin Watson", team: "KC", salary: 3500000 },
-                { id: "3043116", name: "Demarcus Robinson", team: "LAR", salary: 3500000 }, { id: "4360797", name: "Tutu Atwell", team: "LAR", salary: 3500000 },
-                { id: "3932905", name: "Diontae Johnson", team: "PIT", salary: 3500000 }, { id: "3116165", name: "Chris Godwin", team: "TB", salary: 3500000 },
-                { id: "3122168", name: "Trent Sherfield", team: "BUF", salary: 3000000 }, { id: "4249417", name: "Jalen Tolbert", team: "DAL", salary: 3000000 },
-                { id: "3121409", name: "Noah Brown", team: "HOU", salary: 3000000 }, { id: "15880", name: "Robert Woods", team: "HOU", salary: 3000000 },
-                { id: "4035004", name: "Mecole Hardman", team: "KC", salary: 3000000 }, { id: "4241467", name: "Kadarius Toney", team: "KC", salary: 3000000 },
-                { id: "4430191", name: "Skyy Moore", team: "KC", salary: 3000000 }, { id: "3128433", name: "Richie James", team: "KC", salary: 3000000 },
-                { id: "4036335", name: "Cedrick Wilson Jr.", team: "MIA", salary: 3000000 }, { id: "3123075", name: "Braxton Berrios", team: "MIA", salary: 3000000 },
-                { id: "13982", name: "Julio Jones", team: "PHI", salary: 3000000 }, { id: "3917914", name: "Olamide Zaccheaus", team: "PHI", salary: 3000000 },
-                { id: "16765", name: "Allen Robinson II", team: "PIT", salary: 3000000 }, { id: "3886598", name: "Jauan Jennings", team: "SF", salary: 3000000 },
-                { id: "4432610", name: "Trey Palmer", team: "TB", salary: 3000000 }, { id: "4039050", name: "Devin Duvernay", team: "BAL", salary: 2500000 },
-                { id: "3928931", name: "Deonte Harty", team: "BUF", salary: 2500000 }, { id: "4369863", name: "Cedric Tillman", team: "CLE", salary: 2500000 },
-                { id: "4570409", name: "David Bell", team: "CLE", salary: 2500000 }, { id: "15859", name: "Marquise Goodwin", team: "CLE", salary: 2500000 },
-                { id: "3676833", name: "KaVontae Turpin", team: "DAL", salary: 2500000 }, { id: "4689334", name: "Malik Heath", team: "GB", salary: 2500000 },
-                { id: "4361521", name: "Bo Melton", team: "GB", salary: 2500000 }, { id: "4567096", name: "John Metchie III", team: "HOU", salary: 2500000 },
-                { id: "4686422", name: "Xavier Hutchinson", team: "HOU", salary: 2500000 }, { id: "4361376", name: "Justyn Ross", team: "KC", salary: 2500000 },
-                { id: "4035656", name: "Ben Skowronek", team: "LAR", salary: 2500000 }, { id: "4244856", name: "Austin Trammell", team: "LAR", salary: 2500000 },
-                { id: "3051790", name: "River Cracraft", team: "MIA", salary: 2500000 }, { id: "2574808", name: "Robbie Chosen", team: "MIA", salary: 2500000 },
-                { id: "4241472", name: "Chase Claypool", team: "MIA", salary: 2500000 }, { id: "4050373", name: "Quez Watkins", team: "PHI", salary: 2500000 },
-                { id: "3926231", name: "Britain Covey", team: "PHI", salary: 2500000 }, { id: "4243389", name: "Calvin Austin III", team: "PIT", salary: 2500000 },
-                { id: "3728262", name: "Ray-Ray McCloud III", team: "SF", salary: 2500000 }, { id: "4372066", name: "Ronnie Bell", team: "SF", salary: 2500000 },
-                { id: "16983", name: "Willie Snead IV", team: "SF", salary: 2500000 }, { id: "4248818", name: "Deven Thompkins", team: "TB", salary: 2500000 },
-                { id: "4212909", name: "David Moore", team: "TB", salary: 2500000 }
-            ].map(p => ({ ...p, position: 'WR' })),
-            TE: [
-                { id: "3040151", name: "George Kittle", team: "SF", salary: 5000000 }, { id: "4385690", name: "Dalton Kincaid", team: "BUF", salary: 4500000 },
-                { id: "4430027", name: "Sam LaPorta", team: "DET", salary: 4500000 }, { id: "15847", name: "Travis Kelce", team: "KC", salary: 4500000 },
-                { id: "3121023", name: "Dallas Goedert", team: "PHI", salary: 4500000 }, { id: "4361050", name: "Isaiah Likely", team: "BAL", salary: 4000000 },
-                { id: "3123076", name: "David Njoku", team: "CLE", salary: 4000000 }, { id: "4242355", name: "Jake Ferguson", team: "DAL", salary: 4000000 },
-                { id: "4428085", name: "Luke Musgrave", team: "GB", salary: 3500000 }, { id: "4240472", name: "Noah Gray", team: "KC", salary: 3500000 },
-                { id: "2573401", name: "Tyler Higbee", team: "LAR", salary: 3500000 }, { id: "3930086", name: "Dawson Knox", team: "BUF", salary: 3500000 },
-                { id: "4241263", name: "Charlie Kolar", team: "BAL", salary: 3000000 }, { id: "4572680", name: "Tucker Kraft", team: "GB", salary: 3000000 },
-                { id: "3117256", name: "Dalton Schultz", team: "HOU", salary: 3000000 }, { id: "3052897", name: "Durham Smythe", team: "MIA", salary: 3000000 },
-                { id: "4361411", name: "Pat Freiermuth", team: "PIT", salary: 3000000 }, { id: "4243331", name: "Cade Otton", team: "TB", salary: 3000000 },
-                { id: "4244049", name: "Quintin Morris", team: "BUF", salary: 2500000 }, { id: "4038827", name: "Jordan Akins", team: "CLE", salary: 2500000 },
-                { id: "4040774", name: "Harrison Bryant", team: "CLE", salary: 2500000 }, { id: "4372096", name: "Luke Schoonmaker", team: "DAL", salary: 2500000 },
-                { id: "4242354", name: "Peyton Hendershot", team: "DAL", salary: 2500000 }, { id: "4361988", name: "James Mitchell", team: "DET", salary: 2500000 },
-                { id: "4242392", name: "Brock Wright", team: "DET", salary: 2500000 }, { id: "3914151", name: "Josiah Deguara", team: "GB", salary: 2500000 },
-                { id: "4362504", name: "Brevin Jordan", team: "HOU", salary: 2500000 }, { id: "4047648", name: "Blake Bell", team: "KC", salary: 2500000 },
-                { id: "4426553", name: "Davis Allen", team: "LAR", salary: 2500000 }, { id: "4365395", name: "Julian Hill", team: "MIA", salary: 2500000 },
-                { id: "4034862", name: "Jack Stoll", team: "PHI", salary: 2500000 }, { id: "4372758", name: "Grant Calcaterra", team: "PHI", salary: 2500000 },
-                { id: "4241961", name: "Connor Heyward", team: "PIT", salary: 2500000 }, { id: "4430802", name: "Darnell Washington", team: "PIT", salary: 2500000 },
-                { id: "4035020", name: "Charlie Woerner", team: "SF", salary: 2500000 }, { id: "3120303", name: "Ross Dwelley", team: "SF", salary: 2500000 }
-            ].map(p => ({ ...p, position: 'TE' })),
-            DST: [
-                { id: "BAL", name: "Baltimore Ravens", team: "BAL", salary: 3000000 }, { id: "BUF", name: "Buffalo Bills", team: "BUF", salary: 3000000 },
-                { id: "DAL", name: "Dallas Cowboys", team: "DAL", salary: 3000000 }, { id: "SF", name: "San Francisco 49ers", team: "SF", salary: 3000000 },
-                { id: "CLE", name: "Cleveland Browns", team: "CLE", salary: 2500000 }, { id: "DET", name: "Detroit Lions", team: "DET", salary: 2500000 },
-                { id: "GB", name: "Green Bay Packers", team: "GB", salary: 2500000 }, { id: "HOU", name: "Houston Texans", team: "HOU", salary: 2500000 },
-                { id: "KC", name: "Kansas City Chiefs", team: "KC", salary: 2500000 }, { id: "LAR", name: "Los Angeles Rams", team: "LAR", salary: 2500000 },
-                { id: "MIA", name: "Miami Dolphins", team: "MIA", salary: 2500000 }, { id: "PHI", name: "Philadelphia Eagles", team: "PHI", salary: 2500000 },
-                { id: "PIT", name: "Pittsburgh Steelers", team: "PIT", salary: 2500000 }, { id: "TB", name: "Tampa Bay Buccaneers", team: "TB", salary: 2500000 }
-            ].map(p => ({ ...p, position: 'DST' })),
-            K: [
-                { id: "3116387", name: "Justin Tucker", team: "BAL", salary: 3000000 }, { id: "3917232", name: "Tyler Bass", team: "BUF", salary: 3000000 },
-                { id: "3953687", name: "Brandon Aubrey", team: "DAL", salary: 3000000 }, { id: "4372066", name: "Jake Moody", team: "SF", salary: 3000000 },
-                { id: "3115411", name: "Riley Patterson", team: "CLE", salary: 2500000 }, { id: "3124468", name: "Michael Badgley", team: "DET", salary: 2500000 },
-                { id: "3051909", name: "Anders Carlson", team: "GB", salary: 2500000 }, { id: "2971573", name: "Ka'imi Fairbairn", team: "HOU", salary: 2500000 },
-                { id: "3055899", name: "Harrison Butker", team: "KC", salary: 2500000 }, { id: "2577983", name: "Brett Maher", team: "LAR", salary: 2500000 },
-                { id: "3124679", name: "Jason Sanders", team: "MIA", salary: 2500000 }, { id: "3050478", name: "Jake Elliott", team: "PHI", salary: 2500000 },
-                { id: "17372", name: "Chris Boswell", team: "PIT", salary: 2500000 }, { id: "3150744", name: "Chase McLaughlin", team: "TB", salary: 2500000 }
-            ].map(p => ({ ...p, position: 'K' }))
-        };
-
-        // Initialize derived player properties
-        Object.keys(allPlayersByPosition).forEach(pos => {
-            allPlayersByPosition[pos] = allPlayersByPosition[pos].map(p => {
-                if (!p) return null;
-                const teamInfo = TEAMS[p.team];
-                if (!teamInfo && p.position !== 'DST') {
-                    console.warn(`Missing team info for player: ${p.name}, team: ${p.team}`);
-                }
-                if (!p.id || !p.name || !p.team || typeof p.salary !== 'number') {
-                     console.warn(`Invalid player data structure for:`, p);
-                     return null;
-                }
-                return {
-                    ...p,
-                    teamFullName: teamInfo?.name || p.name,
-                    imageUrl: p.position === 'DST'
-                        ? `https://a.espncdn.com/i/teamlogos/nfl/500/${p.id}.png`
-                        : `https://a.espncdn.com/i/headshots/nfl/players/full/${p.id}.png`,
-                    playoffScores: [0,0,0,0],
-                    totalPoints: 0
-                }
-            }).filter(player => player !== null);
-        });
-
 
         // --- DOM ELEMENT REFERENCES ---
         const uiElements = {
@@ -705,76 +618,229 @@
             subHeader: document.getElementById('sub-header'),
             loadingOverlay: document.getElementById('loading-overlay'),
             playerScoresList: document.getElementById('player-scores-list'),
-            standingsTableBody: document.querySelector('#standings-table tbody')
+            standingsTableBody: document.querySelector('#standings-table tbody'),
+            // New Auth UI elements
+            userAuthSection: document.getElementById('user-auth-section'),
+            loginButton: document.getElementById('login-button'),
+            userProfileSection: document.getElementById('user-profile-section'),
+            userEmailDisplay: document.getElementById('user-email-display'),
+            logoutButton: document.getElementById('logout-button')
         };
 
         // =================================================================================
         // --- APP INITIALIZATION ---
         // =================================================================================
         document.addEventListener('DOMContentLoaded', () => {
-            measurePerformance('Initialization', () => {
-                showLoadingState();
-
-                try {
-                    appState.playersById = Object.values(allPlayersByPosition).flat().reduce((acc, player) => {
-                        if (player && player.id) { acc[player.id] = player; }
-                        else { console.warn("Player data missing ID during map creation:", player); }
-                        return acc;
-                    }, {});
-                } catch (error) {
-                    console.error("Error creating playersById map:", error);
-                    showAlertModal("Initialization Error", "Failed to load player data. Please refresh.");
-                }
-
-                setupEventListeners();
-                initializeUI();
-
-                safeSetTimeout(hideLoadingState, 150);
-            });
+            showLoadingState();
+            checkUser(); // Check user status first
+            setupEventListeners();
+            // initializeUI is now called *after* fetching players
         });
 
+        /**
+         * Sets up all the initial event listeners for the application.
+         */
         function setupEventListeners() {
             uiElements.playerPoolContainer?.addEventListener('click', handlePlayerPoolClick);
-
             uiElements.navLinks?.forEach(link => {
                 link.addEventListener('click', handleNavLinkClick);
             });
-
             uiElements.modalCloseBtn?.addEventListener('click', () => uiElements.alertModal?.classList.remove('active'));
             uiElements.alertModal?.addEventListener('click', (e) => {
-                if (e.target === uiElements.alertModal) {
-                    uiElements.alertModal.classList.remove('active');
-                }
+                if (e.target === uiElements.alertModal) uiElements.alertModal.classList.remove('active');
             });
-
             uiElements.playerPoolContainer?.addEventListener('keydown', (event) => {
-                 if (event.key === 'Enter' || event.key === ' ') {
-                     const card = event.target.closest('.player-card');
-                     if (card) {
-                         event.preventDefault();
-                         handlePlayerPoolClick({ target: card });
-                     }
+                 if ((event.key === 'Enter' || event.key === ' ') && event.target.closest('.player-card')) {
+                     event.preventDefault();
+                     handlePlayerPoolClick({ target: event.target.closest('.player-card') });
                  }
             });
+            uiElements.logoutButton?.addEventListener('click', handleLogout);
+            uiElements.submitTeamButton?.addEventListener('click', handleSubmitTeam);
         }
-
+        
+        /**
+         * Renders the initial state of the UI components.
+         */
         function initializeUI() {
             measurePerformance('renderPlayerPool', renderPlayerPool);
             measurePerformance('renderRosterSlots', renderRosterSlots);
-            measurePerformance('renderPlayerScoresTab', renderPlayerScoresTab);
-            measurePerformance('renderStandingsTab', renderStandingsTab);
-            triggerUpdateAllUI();
+            measurePerformance('renderPlayerScoresTab', renderPlayerScoresTab); 
+            measurePerformance('renderStandingsTab', renderStandingsTab);   
+            triggerUpdateAllUI(); 
             measurePerformance('renderSubHeader', renderSubHeader);
         }
 
         // =================================================================================
-        // --- EVENT HANDLERS ---
+        // --- AUTHENTICATION & DATA FETCHING ---
         // =================================================================================
+
+        /**
+         * Checks for an active Supabase session. Redirects to login if not found.
+         */
+        async function checkUser() {
+            if (!supabase) {
+                showAlertModal("Connection Error", "Could not connect to the database. Please check your network or contact the admin.");
+                return;
+            }
+            
+            const { data, error } = await supabase.auth.getSession();
+            if (error) {
+                console.error("Error getting session:", error.message);
+                window.location.href = "login.html"; // Redirect on error
+            } else if (!data.session) {
+                window.location.href = "login.html"; // Redirect if no session
+            } else {
+                // User is logged in!
+                appState.currentUser = data.session.user;
+                appState.currentSession = data.session;
+                updateAuthUI(true, data.session.user.email);
+                await fetchPlayers(); // Fetch players now that user is logged in
+            }
+        }
+
+        /**
+         * Updates the header UI to show user email and logout, or login button.
+         * @param {boolean} loggedIn - Whether the user is logged in.
+         * @param {string} [email] - The user's email to display.
+         */
+        function updateAuthUI(loggedIn, email = '') {
+            if (loggedIn) {
+                uiElements.loginButton?.classList.add('hidden');
+                uiElements.userProfileSection?.classList.remove('hidden');
+                if (uiElements.userEmailDisplay) uiElements.userEmailDisplay.textContent = email;
+            } else {
+                uiElements.loginButton?.classList.remove('hidden');
+                uiElements.userProfileSection?.classList.add('hidden');
+                if (uiElements.userEmailDisplay) uiElements.userEmailDisplay.textContent = '';
+            }
+        }
+
+        /**
+         * Handles the logout button click.
+         */
+        async function handleLogout() {
+            showLoadingState();
+            const { error } = await supabase.auth.signOut();
+            if (error) {
+                showAlertModal("Logout Error", error.message);
+            } else {
+                window.location.href = "login.html"; // Redirect to login on success
+            }
+            hideLoadingState();
+        }
+
+        /**
+         * Fetches the full player list from the Supabase 'players' table.
+         */
+        async function fetchPlayers() {
+            showLoadingState();
+            let { data: players, error } = await supabase
+                .from('players')
+                .select('*');
+
+            if (error) {
+                console.error("Error fetching players:", error.message);
+                showAlertModal("Data Error", "Could not load player data from the database. Please try refreshing.");
+                hideLoadingState();
+                return;
+            }
+
+            // Process fetched players to match our app structure
+            appState.allPlayersByPosition = { QB: [], RB: [], WR: [], TE: [], DST: [], K: [] };
+
+            players.forEach(p => {
+                const player = {
+                    ...p,
+                    teamFullName: TEAMS[p.team]?.name || p.name,
+                    imageUrl: p.position === 'DST'
+                        ? `https://a.espncdn.com/i/teamlogos/nfl/500/${p.id}.png`
+                        : `https://a.espncdn.com/i/headshots/nfl/players/full/${p.id}.png`,
+                    playoffScores: [0,0,0,0], // Placeholder
+                    totalPoints: 0 // Placeholder
+                };
+
+                if (appState.allPlayersByPosition[player.position]) {
+                    appState.allPlayersByPosition[player.position].push(player);
+                    appState.playersById[player.id] = player;
+                }
+            });
+
+            // Now that data is fetched, initialize the rest of the UI
+            initializeUI();
+            hideLoadingState();
+        }
+
+        // =================================================================================
+        // --- CORE DRAFTING LOGIC ---
+        // =================================================================================
+        
+        /**
+         * Handles submitting the final drafted team to the database.
+         */
+        async function handleSubmitTeam() {
+            if (Object.keys(appState.draftedPlayers).length !== CONSTANTS.ROSTER_SIZE) {
+                showAlertModal("Roster Incomplete", "You must draft 10 players to submit your team.");
+                return;
+            }
+
+            showLoadingState();
+            
+            // 1. Create a new entry in 'user_teams'
+            // We'll add payment/team name logic later
+            const { data: teamData, error: teamError } = await supabase
+                .from('user_teams')
+                .insert({ 
+                    user_id: appState.currentUser.id,
+                    team_name: appState.currentTeamName // Placeholder name for now
+                    // payment_method will be added later
+                })
+                .select() // Ask Supabase to return the row we just created
+                .single(); // We only expect one row back
+
+            if (teamError) {
+                console.error("Error creating team:", teamError.message);
+                showAlertModal("Submit Error", `Could not create your team: ${teamError.message}`);
+                hideLoadingState();
+                return;
+            }
+
+            const newTeamId = teamData.id;
+
+            // 2. Prepare all 'team_players' entries
+            const playersToInsert = Object.values(appState.roster).filter(Boolean).map(player => {
+                const slotKey = Object.keys(appState.roster).find(key => appState.roster[key] === player);
+                return {
+                    team_id: newTeamId,
+                    player_id: player.id,
+                    roster_slot: slotKey
+                };
+            });
+
+            // 3. Insert all players into 'team_players'
+            const { error: playersError } = await supabase
+                .from('team_players')
+                .insert(playersToInsert);
+
+            if (playersError) {
+                console.error("Error saving roster:", playersError.message);
+                showAlertModal("Submit Error", `Your team was created but we could not save your players: ${playersError.message}. Please contact support.`);
+                // We should probably delete the 'user_teams' entry here for cleanup
+            } else {
+                showAlertModal("Success!", "Your team has been submitted. Good luck!");
+                // Disable the submit button to prevent double-submissions
+                uiElements.submitTeamButton.disabled = true;
+                uiElements.submitTeamButton.setAttribute('aria-disabled', 'true');
+                uiElements.submitTeamButton.textContent = "Team Submitted!";
+            }
+            
+            hideLoadingState();
+        }
 
         function handlePlayerPoolClick(event) {
             const card = event.target.closest('.player-card');
             const header = event.target.closest('.position-group > h2');
-
+            
             if (header) {
                 header.parentElement?.classList.toggle('section-collapsed');
                 const isExpanded = !(header.parentElement?.classList.contains('section-collapsed'));
@@ -811,10 +877,6 @@
                 content.classList.toggle('active', content.id === targetId);
             });
         }
-
-        // =================================================================================
-        // --- CORE DRAFTING LOGIC ---
-        // =================================================================================
 
         function draftPlayer(player, cardElement) {
              if (!player || typeof player !== 'object' || !player.id || typeof player.salary !== 'number') {
@@ -892,7 +954,6 @@
                 showAlertModal("Remove Error", "An internal error occurred while removing the player.");
                 return;
             }
-
             triggerUpdateAllUI();
         }
 
@@ -907,7 +968,7 @@
             const positionOrder = ["QB", "RB", "WR", "TE", "DST", "K"];
 
             positionOrder.forEach((posKey) => {
-                const players = allPlayersByPosition[posKey];
+                const players = appState.allPlayersByPosition[posKey]; // Use state
                 if (players && players.length > 0) {
                     const section = document.createElement('section');
                     section.className = 'position-group';
@@ -969,13 +1030,13 @@
             card.setAttribute('aria-label', `Draft ${player.name}`);
 
             const fallbackInitial = document.createElement('div');
-            fallbackInitial.className = 'player-fallback-initial';
+            fallbackInitial.className = 'player-fallback-initial'; // display: none in CSS
             fallbackInitial.textContent = player.name.charAt(0)?.toUpperCase() || '?';
             fallbackInitial.setAttribute('aria-hidden', 'true');
 
             const img = document.createElement('img');
             img.src = player.imageUrl || '';
-            img.alt = "";
+            img.alt = ""; // Alt text provided by aria-label on card
             img.className = "player-image w-10 h-10 rounded-full mr-2 border-2 border-[var(--accent)] object-cover bg-[var(--bg-light)]";
             img.loading = "lazy";
 
@@ -983,15 +1044,16 @@
                 this.style.display = 'none';
                 const fallback = this.nextElementSibling;
                 if (fallback && fallback.classList.contains('player-fallback-initial')) {
-                     fallback.classList.add('is-visible');
+                     fallback.classList.add('is-visible'); // Use .is-visible to show
                 }
             };
-            img.onload = function () {
-                 const fallback = this.nextElementSibling;
-                 if (fallback && fallback.classList.contains('player-fallback-initial')) {
-                     fallback.classList.remove('is-visible');
-                 }
-            };
+            // This event is not strictly necessary if CSS handles the default hidden state
+            // img.onload = function () {
+            //      const fallback = this.nextElementSibling;
+            //      if (fallback && fallback.classList.contains('player-fallback-initial')) {
+            //          fallback.classList.remove('is-visible');
+            //      }
+            // };
 
             const contentDiv = document.createElement('div');
             contentDiv.className = "flex justify-between items-center";
@@ -1006,7 +1068,7 @@
             `;
 
             leftDiv.appendChild(img);
-            leftDiv.appendChild(fallbackInitial);
+            leftDiv.appendChild(fallbackInitial); // Add fallback, hidden by CSS
             leftDiv.appendChild(nameTeamDiv);
 
             const rightDiv = document.createElement('div');
@@ -1181,7 +1243,7 @@
 
         function renderSubHeader() {
             if (!uiElements.subHeader) return;
-            const positionOrder = Object.keys(allPlayersByPosition);
+            const positionOrder = Object.keys(appState.allPlayersByPosition); // Use state
             try {
                 uiElements.subHeader.innerHTML = `
                     <div class="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -1199,7 +1261,7 @@
         }
 
         // =================================================================================
-        // --- DUMMY TAB RENDERING (for frontend prototype) ---
+        // --- TAB RENDERING ---
         // =================================================================================
 
         function renderPlayerScoresTab() {
@@ -1210,7 +1272,7 @@
             const playoffRoundNames = ["WC", "Div", "Conf", "SB", "Total"];
 
             positionOrder.forEach(posKey => {
-                const players = allPlayersByPosition[posKey];
+                const players = appState.allPlayersByPosition[posKey]; // Use state
                 if (players && players.length > 0) {
                     const section = document.createElement('div');
                     section.className = 'mb-8';
@@ -1258,6 +1320,7 @@
             uiElements.standingsTableBody.innerHTML = '';
             const fragment = document.createDocumentFragment();
 
+            // Dummy data - replace with real data fetching later
             const dummyStandings = [
                 { rank: 1, teamName: "User1's All-Stars", totalPoints: 285.5 },
                 { rank: 2, teamName: "Gridiron Gurus (User2)", totalPoints: 270.0 },

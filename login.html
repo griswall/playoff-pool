@@ -131,22 +131,19 @@
         // --- SUPABASE & APP INITIALIZATION ---
         // =================================================================================
         
-        // Vercel will automatically replace these with the values you set in its dashboard.
-        const SUPABASE_URL = 'VITE_SUPABASE_URL';
-        const SUPABASE_ANON_KEY = 'VITE_SUPABASE_ANON_KEY';
+        const SUPABASE_URL = 'https://jlsudfmhsmxmxpdtkrzr.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impsc3VkZm1oc214bXhwZHRrcnpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExNDQxNjEsImV4cCI6MjA3NjcyMDE2MX0.zJrz82WArsyFLybmGsxkOAr9HBoHrFhfa2pHwqvojxk';
         
-        if (SUPABASE_URL === 'VITE_SUPABASE_URL' || SUPABASE_ANON_KEY === 'VITE_SUPABASE_ANON_KEY') {
-             console.warn("Supabase environment variables not set. Running in local-only mode. \nTo fix this for local development, create a .env file with VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY. \nThese variables are set automatically when deployed to Vercel.");
-        }
-
-        let supabase;
+        let supabaseClient;
         try {
-            // This is the ES Module import, so we use supabase.createClient
-            supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            // Check if the keys are still placeholders
+            if (SUPABASE_URL.includes('PASTE_YOUR') || SUPABASE_ANON_KEY.includes('PASTE_YOUR')) {
+                throw new Error("Supabase keys not set. Please paste your URL and Key into the script.");
+            }
+            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         } catch (e) {
             console.error("Error initializing Supabase.", e.message);
-            // Show error to user on login form
-            showLoginError("Could not connect to authentication service. Please try again later.");
+            // We will show an error on the form
         }
         
         // =================================================================================
@@ -165,6 +162,11 @@
         // --- EVENT LISTENERS ---
         // =================================================================================
         
+        // Check for connection on page load
+        if (!supabaseClient) {
+            showLoginError("Connection error. Supabase keys are not configured correctly.");
+        }
+
         // Toggle between login and sign-up forms
         toggleToSignup.addEventListener('click', () => {
             loginForm.classList.add('hidden');
@@ -185,13 +187,13 @@
             const email = document.getElementById('login-email').value;
             const password = document.getElementById('login-password').value;
 
-            if (!supabase) {
-                showLoginError("Connection error. Please try again later.");
+            if (!supabaseClient) { 
+                showLoginError("Connection error. Supabase keys are not configured correctly.");
                 setLoading(loginSubmitButton, false, "Sign In");
                 return;
             }
 
-            const { error } = await supabase.auth.signInWithPassword({ email, password });
+            const { error } = await supabaseClient.auth.signInWithPassword({ email, password }); 
 
             if (error) {
                 showLoginError(error.message);
@@ -210,13 +212,13 @@
             const email = document.getElementById('signup-email').value;
             const password = document.getElementById('signup-password').value;
 
-            if (!supabase) {
-                showSignupError("Connection error. Please try again later.");
+            if (!supabaseClient) { 
+                showSignupError("Connection error. Supabase keys are not configured correctly.");
                 setLoading(signupSubmitButton, false, "Create Account");
                 return;
             }
 
-            const { data, error } = await supabase.auth.signUp({ email, password });
+            const { data, error } = await supabaseClient.auth.signUp({ email, password }); 
 
             if (error) {
                 showSignupError(error.message);

@@ -69,7 +69,7 @@
         }
         .player-card-grid {
             display: grid;
-            max-height: 5000px;
+            max-height: 5000px; /* Large enough for all content */
             overflow: hidden;
             transition: max-height 0.5s ease-in-out, padding 0.5s ease-in-out;
         }
@@ -92,17 +92,18 @@
             box-shadow: 0 8px 16px rgba(0,0,0,0.3);
             border-color: var(--accent);
         }
+         /* Style for keyboard focus */
         .player-card:focus-visible {
             outline: 2px solid var(--accent);
             outline-offset: 2px;
         }
         .player-drafted {
             opacity: 0.6;
-            pointer-events: none;
+            pointer-events: none; /* Disables clicks */
         }
         .player-unavailable {
             opacity: 0.4;
-            pointer-events: none;
+            pointer-events: none; /* Disables clicks */
         }
         .draft-flash {
             animation: flash 0.5s ease-out;
@@ -123,7 +124,7 @@
             transition: width 0.3s ease-in-out;
         }
         .salary-cap-fill.over-limit {
-            background: var(--error);
+             background: var(--error);
         }
         .rank-badge {
             border-radius: 9999px;
@@ -182,11 +183,16 @@
 
         .tab-content { display: none; }
         .tab-content.active { display: block; }
-        #draft-team-view.active { display: flex; }
+        #draft-team-view.active {
+            display: flex;
+        }
 
         .modal-overlay {
             position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
             background-color: rgba(0, 0, 0, 0.75);
             z-index: 1000;
             display: flex;
@@ -212,7 +218,9 @@
             transform: scale(0.95);
             transition: transform 0.3s ease;
         }
-        .modal-overlay.active .modal-box { transform: scale(1); }
+        .modal-overlay.active .modal-box {
+            transform: scale(1);
+        }
         .modal-close-button {
             background-color: var(--accent);
             color: #000;
@@ -221,7 +229,9 @@
             padding: 0.6rem 1.5rem;
             transition: background-color 0.2s ease;
         }
-        .modal-close-button:hover { background-color: var(--accent-hover); }
+        .modal-close-button:hover {
+            background-color: var(--accent-hover);
+        }
 
         /* New Prompt Modal Styles */
         .prompt-input {
@@ -265,12 +275,14 @@
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
             background-color: rgba(0, 0, 0, 0.5);
-            z-index: 2000;
-            display: none;
+            z-index: 2000; /* High z-index */
+            display: none; /* Hidden by default */
             align-items: center;
             justify-content: center;
         }
-        .loading-overlay.active { display: flex; }
+        .loading-overlay.active {
+            display: flex; /* Shown when active */
+        }
         .loading-spinner {
             border: 4px solid var(--bg-light);
             border-top: 4px solid var(--accent);
@@ -286,21 +298,23 @@
 
         /* Image Fallback Styles */
         .player-fallback-initial {
-            display: none;
+            display: none;             /* ** Corrected: Initially hidden ** */
             width: 40px;
             height: 40px;
             border-radius: 50%;
             margin-right: 0.5rem;
             border: 2px solid var(--accent);
             background-color: var(--bg-light);
+            display: flex;
             align-items: center;
             justify-content: center;
             font-size: 0.75rem;
             font-weight: bold;
             color: var(--text-muted);
+            display: none; /* ** Explicitly set to none ** */
         }
         .player-fallback-initial.is-visible {
-            display: flex;
+            display: flex;             /* ** only shown when JS adds this class ** */
         }
 
         .roster-slot { padding: 0.5rem; }
@@ -344,7 +358,7 @@
             <div id="player-pool-container" class="w-full lg:w-2/3 space-y-10" role="region" aria-label="Available players">
                 <!-- Player cards will be dynamically inserted here by JavaScript -->
             </div>
-            <aside class="w-full lg:w-1/GOOD VIBES (TEST) space-y-6 lg:sticky lg:top-40 self-start">
+            <aside class="w-full lg:w-1/3 space-y-6 lg:sticky lg:top-40 self-start">
                 <!-- Salary Cap Section -->
                 <div class="content-section p-4">
                     <h3 class="text-lg font-semibold text-white mb-1">Salary Cap</h3>
@@ -895,7 +909,6 @@
             const clickedLink = event.currentTarget;
             if (!clickedLink) return;
             
-            // Handle hash links for in-page anchors
             const href = clickedLink.getAttribute('href');
             if (href.startsWith('#')) {
                 // This is an in-page anchor link
@@ -909,6 +922,8 @@
                      uiElements.tabContents?.forEach(content => {
                         content.classList.toggle('active', content.id === targetId);
                      });
+                     // After switching tabs, scroll to the top of the main content area
+                     document.querySelector('main.container')?.scrollIntoView({ behavior: 'smooth' });
                 } else if (targetElement) {
                      // Standard anchor link behavior
                      targetElement.scrollIntoView({ behavior: 'smooth' });

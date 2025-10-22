@@ -53,10 +53,10 @@
             border-bottom: 1px solid var(--bg-light);
         }
         .position-group h2 {
-            background-color: var(--bg-medium); 
+            background-color: var(--bg-medium);
             color: white;
-            font-weight: 700; 
-            border-bottom: 2px solid var(--bg-light); 
+            font-weight: 700;
+            border-bottom: 2px solid var(--bg-light);
             cursor: pointer;
         }
         .collapse-icon {
@@ -67,7 +67,7 @@
         }
         .player-card-grid {
             display: grid;
-            max-height: 5000px; /* Large enough for all content */
+            max-height: 5000px;
             overflow: hidden;
             transition: max-height 0.5s ease-in-out, padding 0.5s ease-in-out;
         }
@@ -90,13 +90,17 @@
             box-shadow: 0 8px 16px rgba(0,0,0,0.3);
             border-color: var(--accent);
         }
+        .player-card:focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
+        }
         .player-drafted {
             opacity: 0.6;
-            pointer-events: none; /* Disables clicks */
+            pointer-events: none;
         }
         .player-unavailable {
             opacity: 0.4;
-            pointer-events: none; /* Disables clicks */
+            pointer-events: none;
         }
         .draft-flash {
             animation: flash 0.5s ease-out;
@@ -117,7 +121,7 @@
             transition: width 0.3s ease-in-out;
         }
         .salary-cap-fill.over-limit {
-             background: var(--error);
+            background: var(--error);
         }
         .rank-badge {
             border-radius: 9999px;
@@ -128,34 +132,34 @@
         .rank-1 { background: gold; color: #000; }
         .rank-2 { background: silver; color: #000; }
         .rank-3 { background: #cd7f32; color: #fff; }
-        .rank-other { background-color: var(--bg-light); color: var(--text-primary); } 
+        .rank-other { background-color: var(--bg-light); color: var(--text-primary); }
 
-        .content-section { 
+        .content-section {
             background-color: var(--bg-medium);
             border: 1px solid var(--bg-light);
-            padding: 1.5rem; 
-            border-radius: 0.75rem; 
+            padding: 1rem;
+            border-radius: 0.75rem;
             box-shadow: 0 4px 12px rgba(0,0,0,0.3);
         }
-        .salary-value { 
+        .salary-value {
             color: var(--yellow);
             font-weight: 700;
         }
-        
+
         .roster-slot-filled { color: #B0E0E6; }
         .roster-slot-player-name { font-weight: 700; }
-        
-        .data-table { width: 100%; border-collapse: separate; border-spacing: 0; } 
+
+        .data-table { width: 100%; border-collapse: separate; border-spacing: 0; }
         .data-table th, .data-table td {
-            padding: 0.85rem 1rem; 
+            padding: 0.85rem 1rem;
             text-align: left;
-            border-bottom: 1px solid var(--bg-light); 
+            border-bottom: 1px solid var(--bg-light);
         }
         .data-table th {
-            background-color: var(--bg-light); 
-            font-weight: 700; 
+            background-color: var(--bg-light);
+            font-weight: 700;
             color: var(--text-primary);
-            text-transform: uppercase; 
+            text-transform: uppercase;
             font-size: 0.8rem;
             letter-spacing: 0.05em;
         }
@@ -166,8 +170,8 @@
             transition: background-color 0.15s ease;
         }
         .data-table tbody tr:hover { background-color: var(--bg-light); }
-        
-        .prose-invert ul > li::before { background-color: var(--accent); } 
+
+        .prose-invert ul > li::before { background-color: var(--accent); }
 
         ::-webkit-scrollbar { width: 10px; height: 10px; }
         ::-webkit-scrollbar-track { background: var(--bg-deep); border-radius: 10px; }
@@ -176,16 +180,11 @@
 
         .tab-content { display: none; }
         .tab-content.active { display: block; }
-        #draft-team-view.active { 
-            display: flex; 
-        }
-        
+        #draft-team-view.active { display: flex; }
+
         .modal-overlay {
             position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
+            top: 0; left: 0; right: 0; bottom: 0;
             background-color: rgba(0, 0, 0, 0.75);
             z-index: 1000;
             display: flex;
@@ -211,9 +210,7 @@
             transform: scale(0.95);
             transition: transform 0.3s ease;
         }
-        .modal-overlay.active .modal-box {
-            transform: scale(1);
-        }
+        .modal-overlay.active .modal-box { transform: scale(1); }
         .modal-close-button {
             background-color: var(--accent);
             color: #000;
@@ -222,9 +219,52 @@
             padding: 0.6rem 1.5rem;
             transition: background-color 0.2s ease;
         }
-        .modal-close-button:hover {
-            background-color: var(--accent-hover);
+        .modal-close-button:hover { background-color: var(--accent-hover); }
+
+        /* Loading Spinner Styles */
+        .loading-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+            display: none;
+            align-items: center;
+            justify-content: center;
         }
+        .loading-overlay.active { display: flex; }
+        .loading-spinner {
+            border: 4px solid var(--bg-light);
+            border-top: 4px solid var(--accent);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Image Fallback Styles */
+        .player-fallback-initial {
+            display: none;             /* ** hidden unless image fails ** */
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+            border: 2px solid var(--accent);
+            background-color: var(--bg-light);
+            align-items: center;       /* take effect when visible */
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: bold;
+            color: var(--text-muted);
+        }
+        .player-fallback-initial.is-visible {
+            display: flex;             /* ** only shown when JS adds this class ** */
+        }
+
+        .roster-slot { padding: 0.5rem; }
     </style>
 </head>
 <body class="min-h-screen">
@@ -243,7 +283,7 @@
                     <div id="user-auth-section" class="flex items-center">
                         <!-- Logged Out View (default) -->
                         <a href="login.html" id="login-button" class="nav-link bg-[var(--accent)] text-black font-semibold">Login / Sign Up</a>
-    
+
                         <!-- Logged In View (hidden by default) -->
                         <div id="user-profile-section" class="hidden items-center space-x-4">
                             <span id="user-email-display" class="text-sm text-[var(--text-muted)]">user@example.com</span>
@@ -259,25 +299,27 @@
 
     <main class="container mx-auto p-4 sm:p-6 lg:p-8">
         <div id="draft-team-view" class="tab-content active flex-col lg:flex-row gap-6">
-            <div id="player-pool-container" class="w-full lg:w-2/3 space-y-10">
-                {/* Player cards will be dynamically inserted here by JavaScript */}
+            <div id="player-pool-container" class="w-full lg:w-2/3 space-y-10" role="region" aria-label="Available players">
+                <!-- Player cards will be dynamically inserted here by JavaScript -->
             </div>
             <aside class="w-full lg:w-1/3 space-y-6 lg:sticky lg:top-40 self-start">
-                <div class="content-section"> 
-                    <h3 class="text-xl font-semibold text-white mb-2">Salary Cap</h3>
-                    <div class="text-3xl salary-value mb-1" id="total-salary-cap">$38.5M</div>
-                    <div class="text-lg text-gray-300">Remaining: <span class="font-semibold salary-value" id="remaining-salary">$38.5M</span></div>
-                    <div class="salary-cap-bar mt-3">
+                <!-- Salary Cap Section -->
+                <div class="content-section p-4">
+                    <h3 class="text-lg font-semibold text-white mb-1">Salary Cap</h3>
+                    <div class="text-2xl salary-value mb-0.5" id="total-salary-cap" aria-label="Total salary cap">$38.5M</div>
+                    <div class="text-base text-gray-300">Remaining: <span class="font-semibold salary-value" id="remaining-salary" aria-live="polite">$38.5M</span></div>
+                    <div class="salary-cap-bar mt-2" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
                         <div id="salary-progress-bar" class="salary-cap-fill" style="width: 0%"></div>
                     </div>
                 </div>
-                <div class="content-section"> 
-                    <h3 class="text-xl font-semibold text-white mb-4">Your Current Roster (<span id="roster-count">0</span>/10)</h3>
-                    <div id="roster-slots-container" class="space-y-3 text-gray-300">
-                        {/* Roster slots */}
+                 <!-- Roster Section -->
+                <div class="content-section p-4">
+                    <h3 class="text-lg font-semibold text-white mb-3">Your Current Roster (<span id="roster-count" aria-live="polite">0</span>/10)</h3>
+                    <div id="roster-slots-container" class="space-y-2 text-gray-300" role="list" aria-label="Current roster">
+                        <!-- Roster slots -->
                     </div>
-                    <button id="submit-team-button" class="mt-6 w-full nav-link bg-[var(--accent)] text-black font-bold text-lg py-3 disabled:opacity-50 disabled:cursor-not-allowed" disabled>Submit Team</button>
-                    <p id="submit-team-message" class="text-xs text-center mt-2 text-[var(--text-muted)]">Draft 10 players to submit.</p>
+                    <button id="submit-team-button" class="mt-4 w-full nav-link bg-[var(--accent)] text-black font-bold text-lg py-2 disabled:opacity-50 disabled:cursor-not-allowed" disabled aria-label="Submit team">Submit Team</button>
+                    <p id="submit-team-message" class="text-xs text-center mt-2 text-[var(--text-muted)]" aria-live="polite">Draft 10 players to submit.</p>
                 </div>
             </aside>
         </div>
@@ -285,7 +327,7 @@
         <div id="player-scores-view" class="tab-content content-section">
             <h2 class="text-2xl sm:text-3xl font-extrabold text-white mb-6">Player Scores</h2>
             <div id="player-scores-list" class="space-y-8">
-                {/* Player scores by position will be inserted here */}
+                <!-- Player scores by position will be inserted here -->
             </div>
         </div>
 
@@ -301,12 +343,12 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {/* Standings rows will be inserted here */}
+                        <!-- Standings rows will be inserted here -->
                     </tbody>
                 </table>
             </div>
         </div>
-        
+
         <div id="rules-view" class="tab-content content-section">
             <h2 class="text-2xl sm:text-3xl font-extrabold text-white mb-6">Pool Rules</h2>
             <div class="prose prose-invert max-w-none text-gray-300 space-y-4">
@@ -355,7 +397,7 @@
         <p class="text-[var(--text-muted)]">&copy; 2025 Hurd NFL Playoff Pool. All Rights Reserved.</p>
     </footer>
 
-    <div id="alert-modal" class="modal-overlay">
+    <div id="alert-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title">
         <div class="modal-box text-center">
             <h3 id="modal-title" class="text-2xl font-bold text-white mb-4">Drafting Error</h3>
             <p id="modal-message" class="text-gray-300 mb-6">This is a default error message.</p>
@@ -363,52 +405,116 @@
         </div>
     </div>
 
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay" role="status" aria-live="polite">
+        <div class="loading-spinner" aria-label="Loading"></div>
+    </div>
 
     <script>
         // =================================================================================
-        // --- CONSTANTS AND STATE MANAGEMENT ---
+        // --- CONSTANTS ---
         // =================================================================================
-        const initialSalaryCap = 38500000; 
-        const MAX_PLAYERS_PER_TEAM = 3;
-        const ROSTER_SIZE = 10; 
-
-        // App State - All variables that track the user's current draft
-        let currentSalarySpent = 0;
-        let draftedPlayers = {}; // Using an object for O(1) lookups
-        let roster = { 
-            QB: null, RB1: null, RB2: null, RB3: null, WR1: null, WR2: null, WR3: null,
-            FLEX: null, DST: null, K: null
+        const CONSTANTS = {
+            INITIAL_SALARY_CAP: 38500000,
+            MAX_PLAYERS_PER_TEAM: 3,
+            ROSTER_SIZE: 10,
+            ANIMATION_DURATION: 500,
+            DEBOUNCE_DELAY: 50,
+            MAX_SALARY_PERCENTAGE: 100,
+            PERFORMANCE_THRESHOLD: 100
         };
-        let teamCounts = {}; // Tracks number of players from each NFL team
-        let playersById = {}; // A map for quick player data retrieval by ID
 
-        const rosterSlotConfig = {
-            QB: { count: 1, display: "QB", slots: ["QB"] },
-            RB: { count: 3, display: "RB", slots: ["RB1", "RB2", "RB3"] },
-            WR: { count: 3, display: "WR", slots: ["WR1", "WR2", "WR3"] },
-            FLEX: { count: 1, display: "FLEX (RB/WR/TE)", slots: ["FLEX"] },
-            DST: { count: 1, display: "D/ST", slots: ["DST"] },
-            K: { count: 1, display: "K", slots: ["K"]},
-            TE: { count: 0, display: "TE", slots: [] } // TEs don't have primary slots, only FLEX
+        // =================================================================================
+        // --- STATE MANAGEMENT ---
+        // =================================================================================
+        const appState = {
+            currentSalarySpent: 0,
+            draftedPlayers: {},
+            roster: {
+                QB: null, RB1: null, RB2: null, RB3: null,
+                WR1: null, WR2: null, WR3: null,
+                FLEX: null, DST: null, K: null
+            },
+            teamCounts: {},
+            playersById: {}
         };
+
+        const timeouts = new Set();
+        let updateUITimeout = null;
 
         // =================================================================================
         // --- UTILITY FUNCTIONS ---
         // =================================================================================
-        /**
-         * Converts a numeric salary value into a formatted string (e.g., "$6.5M").
-         * @param {number} value The numeric salary.
-         * @returns {string} The formatted salary string.
-         */
+
+        function safeSetTimeout(callback, delay) {
+            const id = setTimeout(() => {
+                try { callback(); } catch (error) {
+                    console.error("Error in safeSetTimeout callback:", error);
+                } finally {
+                    timeouts.delete(id);
+                }
+            }, delay);
+            timeouts.add(id);
+            return id;
+        }
+
+        function clearAllTimeouts() {
+            timeouts.forEach(id => clearTimeout(id));
+            timeouts.clear();
+            if (updateUITimeout) clearTimeout(updateUITimeout);
+        }
+        window.addEventListener('beforeunload', clearAllTimeouts);
+
+        function measurePerformance(label, fn) {
+            const start = performance.now();
+            let result;
+            try { result = fn(); } catch (error) {
+                console.error(`Error during "${label}":`, error);
+                throw error;
+            }
+            const duration = performance.now() - start;
+            if (duration > CONSTANTS.PERFORMANCE_THRESHOLD) {
+                console.warn(`Slow operation: ${label} took ${duration.toFixed(2)}ms`);
+            }
+            return result;
+        }
+
         function formatToMillions(value) {
-            if (typeof value !== 'number') return '$0.0M';
+            if (typeof value !== 'number' || isNaN(value)) {
+                console.warn(`Invalid value passed to formatToMillions: ${value}`);
+                return '$0.0M';
+            }
             const millions = value / 1000000;
             return `$${millions.toFixed(1)}M`;
         }
 
+        function triggerUpdateAllUI() {
+            if (updateUITimeout) clearTimeout(updateUITimeout);
+            updateUITimeout = safeSetTimeout(() => {
+                measurePerformance('updateAllUI', () => {
+                    updateSalaryUI();
+                    updateRosterCount();
+                    renderRosterSlots();
+                    updatePlayerAvailabilityInPool();
+                    checkRosterFull();
+                });
+            }, CONSTANTS.DEBOUNCE_DELAY);
+        }
+
+        function showLoadingState() {
+            const overlay = document.getElementById('loading-overlay');
+            if (overlay) overlay.classList.add('active');
+        }
+
+        function hideLoadingState() {
+            const overlay = document.getElementById('loading-overlay');
+            if (overlay) overlay.classList.remove('active');
+        }
+
         // =================================================================================
-        // --- DATA ---
+        // --- DATA CONFIGURATION ---
         // =================================================================================
+
         const TEAMS = {
             "BAL": { name: "Baltimore Ravens" }, "BUF": { name: "Buffalo Bills" },
             "CLE": { name: "Cleveland Browns" }, "DAL": { name: "Dallas Cowboys" },
@@ -418,8 +524,18 @@
             "PHI": { name: "Philadelphia Eagles" }, "PIT": { name: "Pittsburgh Steelers" },
             "SF": { name: "San Francisco 49ers" }, "TB": { name: "Tampa Bay Buccaneers" }
         };
-        
-        const allPlayersByPosition = { 
+
+        const rosterSlotConfig = {
+            QB: { count: 1, display: "QB", slots: ["QB"] },
+            RB: { count: 3, display: "RB", slots: ["RB1", "RB2", "RB3"] },
+            WR: { count: 3, display: "WR", slots: ["WR1", "WR2", "WR3"] },
+            FLEX: { count: 1, display: "FLEX (RB/WR/TE)", slots: ["FLEX"] },
+            DST: { count: 1, display: "D/ST", slots: ["DST"] },
+            K: { count: 1, display: "K", slots: ["K"]},
+            TE: { count: 0, display: "TE", slots: [] }
+        };
+
+        const allPlayersByPosition = {
             QB: [
                 { id: "3918298", name: "Josh Allen", team: "BUF", salary: 6500000 },
                 { id: "3916387", name: "Lamar Jackson", team: "BAL", salary: 6000000 },
@@ -545,227 +661,265 @@
             ].map(p => ({ ...p, position: 'K' }))
         };
 
-        for (const pos in allPlayersByPosition) {
+        // Initialize derived player properties
+        Object.keys(allPlayersByPosition).forEach(pos => {
             allPlayersByPosition[pos] = allPlayersByPosition[pos].map(p => {
-                if (!p) return null; // Defensive check for bad data
+                if (!p) return null;
+                const teamInfo = TEAMS[p.team];
+                if (!teamInfo && p.position !== 'DST') {
+                    console.warn(`Missing team info for player: ${p.name}, team: ${p.team}`);
+                }
+                if (!p.id || !p.name || !p.team || typeof p.salary !== 'number') {
+                     console.warn(`Invalid player data structure for:`, p);
+                     return null;
+                }
                 return {
                     ...p,
-                    teamFullName: TEAMS[p.team]?.name || p.team,
-                    imageUrl: p.position === 'DST' ? `https://a.espncdn.com/i/teamlogos/nfl/500/${p.team}.png` : `https://a.espncdn.com/i/headshots/nfl/players/full/${p.id}.png`,
+                    teamFullName: teamInfo?.name || p.name,
+                    imageUrl: p.position === 'DST'
+                        ? `https://a.espncdn.com/i/teamlogos/nfl/500/${p.id}.png`
+                        : `https://a.espncdn.com/i/headshots/nfl/players/full/${p.id}.png`,
                     playoffScores: [0,0,0,0],
                     totalPoints: 0
                 }
-            }).filter(Boolean); // Remove any null players from bad data
-        }
+            }).filter(player => player !== null);
+        });
+
 
         // --- DOM ELEMENT REFERENCES ---
-        const playerPoolContainer = document.getElementById('player-pool-container');
-        const rosterSlotsContainer = document.getElementById('roster-slots-container');
-        const remainingSalaryEl = document.getElementById('remaining-salary');
-        const totalSalaryCapEl = document.getElementById('total-salary-cap');
-        const salaryProgressBar = document.getElementById('salary-progress-bar');
-        const rosterCountEl = document.getElementById('roster-count');
-        const submitTeamButton = document.getElementById('submit-team-button');
-        const submitTeamMessage = document.getElementById('submit-team-message');
-        const navLinks = document.querySelectorAll('.nav-link');
-        const tabContents = document.querySelectorAll('.tab-content');
-        const alertModal = document.getElementById('alert-modal');
-        const modalTitle = document.getElementById('modal-title');
-        const modalMessage = document.getElementById('modal-message');
-        const modalCloseBtn = document.getElementById('modal-close-btn');
+        const uiElements = {
+            playerPoolContainer: document.getElementById('player-pool-container'),
+            rosterSlotsContainer: document.getElementById('roster-slots-container'),
+            remainingSalaryEl: document.getElementById('remaining-salary'),
+            totalSalaryCapEl: document.getElementById('total-salary-cap'),
+            salaryProgressBar: document.getElementById('salary-progress-bar'),
+            rosterCountEl: document.getElementById('roster-count'),
+            submitTeamButton: document.getElementById('submit-team-button'),
+            submitTeamMessage: document.getElementById('submit-team-message'),
+            navLinks: document.querySelectorAll('.nav-link'),
+            tabContents: document.querySelectorAll('.tab-content'),
+            alertModal: document.getElementById('alert-modal'),
+            modalTitle: document.getElementById('modal-title'),
+            modalMessage: document.getElementById('modal-message'),
+            modalCloseBtn: document.getElementById('modal-close-btn'),
+            subHeader: document.getElementById('sub-header'),
+            loadingOverlay: document.getElementById('loading-overlay'),
+            playerScoresList: document.getElementById('player-scores-list'),
+            standingsTableBody: document.querySelector('#standings-table tbody')
+        };
 
         // =================================================================================
         // --- APP INITIALIZATION ---
         // =================================================================================
-        /**
-         * Runs when the DOM is fully loaded. Initializes the application.
-         */
         document.addEventListener('DOMContentLoaded', () => {
-            // Create a fast-access map of players by their ID for performance
-            playersById = Object.values(allPlayersByPosition).flat().reduce((acc, player) => {
-                if (player && player.id) {
-                    acc[player.id] = player;
-                }
-                return acc;
-            }, {});
+            measurePerformance('Initialization', () => {
+                showLoadingState();
 
-            setupEventListeners();
-            initializeUI();
+                try {
+                    appState.playersById = Object.values(allPlayersByPosition).flat().reduce((acc, player) => {
+                        if (player && player.id) { acc[player.id] = player; }
+                        else { console.warn("Player data missing ID during map creation:", player); }
+                        return acc;
+                    }, {});
+                } catch (error) {
+                    console.error("Error creating playersById map:", error);
+                    showAlertModal("Initialization Error", "Failed to load player data. Please refresh.");
+                }
+
+                setupEventListeners();
+                initializeUI();
+
+                safeSetTimeout(hideLoadingState, 150);
+            });
         });
 
-        /**
-         * Sets up all the initial event listeners for the application.
-         */
         function setupEventListeners() {
-            // Use event delegation for player cards for better performance
-            playerPoolContainer.addEventListener('click', handlePlayerPoolClick);
+            uiElements.playerPoolContainer?.addEventListener('click', handlePlayerPoolClick);
 
-            // Setup navigation tabs
-            navLinks.forEach(link => {
-                link.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    const targetId = link.id.replace('nav-', '') + '-view';
-                    navLinks.forEach(nav => nav.classList.remove('active'));
-                    link.classList.add('active');
-                    tabContents.forEach(content => content.classList.remove('active'));
-                    document.getElementById(targetId)?.classList.add('active');
-                });
+            uiElements.navLinks?.forEach(link => {
+                link.addEventListener('click', handleNavLinkClick);
             });
 
-            // Setup modal close events
-            modalCloseBtn.addEventListener('click', () => alertModal.classList.remove('active'));
-            alertModal.addEventListener('click', (e) => {
-                if (e.target === alertModal) { // Close only if clicking the overlay
-                    alertModal.classList.remove('active');
+            uiElements.modalCloseBtn?.addEventListener('click', () => uiElements.alertModal?.classList.remove('active'));
+            uiElements.alertModal?.addEventListener('click', (e) => {
+                if (e.target === uiElements.alertModal) {
+                    uiElements.alertModal.classList.remove('active');
                 }
             });
+
+            uiElements.playerPoolContainer?.addEventListener('keydown', (event) => {
+                 if (event.key === 'Enter' || event.key === ' ') {
+                     const card = event.target.closest('.player-card');
+                     if (card) {
+                         event.preventDefault();
+                         handlePlayerPoolClick({ target: card });
+                     }
+                 }
+            });
         }
-        
-        /**
-         * Renders the initial state of the UI.
-         */
+
         function initializeUI() {
-            renderPlayerPool();
-            renderRosterSlots();
-            renderPlayerScoresTab(); 
-            renderStandingsTab();   
-            updateAllUI(); 
-            renderSubHeader();
+            measurePerformance('renderPlayerPool', renderPlayerPool);
+            measurePerformance('renderRosterSlots', renderRosterSlots);
+            measurePerformance('renderPlayerScoresTab', renderPlayerScoresTab);
+            measurePerformance('renderStandingsTab', renderStandingsTab);
+            triggerUpdateAllUI();
+            measurePerformance('renderSubHeader', renderSubHeader);
+        }
+
+        // =================================================================================
+        // --- EVENT HANDLERS ---
+        // =================================================================================
+
+        function handlePlayerPoolClick(event) {
+            const card = event.target.closest('.player-card');
+            const header = event.target.closest('.position-group > h2');
+
+            if (header) {
+                header.parentElement?.classList.toggle('section-collapsed');
+                const isExpanded = !(header.parentElement?.classList.contains('section-collapsed'));
+                header.setAttribute('aria-expanded', isExpanded.toString());
+                return;
+            }
+
+            if (card) {
+                if (!card.classList.contains('player-unavailable') && !card.classList.contains('player-drafted')) {
+                    const playerId = card.dataset.playerId;
+                    const player = appState.playersById[playerId];
+                    if (player) {
+                        draftPlayer(player, card);
+                    } else {
+                        console.error(`Player not found in map for ID: ${playerId}.`);
+                        showAlertModal("Draft Error", "Could not find player data. Please refresh the page.");
+                    }
+                }
+                return;
+            }
+        }
+
+        function handleNavLinkClick(event) {
+            event.preventDefault();
+            const clickedLink = event.currentTarget;
+            if (!clickedLink) return;
+
+            const targetId = clickedLink.id.replace('nav-', '') + '-view';
+
+            uiElements.navLinks?.forEach(nav => nav.classList.remove('active'));
+            clickedLink.classList.add('active');
+
+            uiElements.tabContents?.forEach(content => {
+                content.classList.toggle('active', content.id === targetId);
+            });
         }
 
         // =================================================================================
         // --- CORE DRAFTING LOGIC ---
         // =================================================================================
 
-        /**
-         * Handles clicks on the player pool using event delegation.
-         * @param {Event} event - The click event.
-         */
-        function handlePlayerPoolClick(event) {
-            const card = event.target.closest('.player-card');
-            const header = event.target.closest('.position-group > h2');
-            
-            if (header) {
-                header.parentElement.classList.toggle('section-collapsed');
+        function draftPlayer(player, cardElement) {
+             if (!player || typeof player !== 'object' || !player.id || typeof player.salary !== 'number') {
+                console.error("Invalid player data passed to draftPlayer:", player);
+                showAlertModal("Draft Error", "Internal error: Invalid player data.");
                 return;
             }
 
-            if (!card) return; // Click was not on a player card
-
-            // Don't draft if the card is already drafted or unavailable
-            if (card.classList.contains('player-unavailable') || card.classList.contains('player-drafted')) {
+            if (appState.draftedPlayers[player.id]) {
+                console.warn(`Attempted to draft already drafted player: ${player.name}`);
+                return;
+            }
+            if (appState.currentSalarySpent + player.salary > CONSTANTS.INITIAL_SALARY_CAP) {
+                showAlertModal('Salary Cap Exceeded', `Cannot draft ${player.name} (${formatToMillions(player.salary)}). Salary remaining: ${formatToMillions(CONSTANTS.INITIAL_SALARY_CAP - appState.currentSalarySpent)}.`);
+                return;
+            }
+            if ((appState.teamCounts[player.team] || 0) >= CONSTANTS.MAX_PLAYERS_PER_TEAM) {
+                showAlertModal('Team Limit Reached', `You already have ${CONSTANTS.MAX_PLAYERS_PER_TEAM} players from the ${player.teamFullName || player.team}. Only ${CONSTANTS.MAX_PLAYERS_PER_TEAM} allowed per team.`);
                 return;
             }
 
-            const playerId = card.dataset.playerId;
-            const player = playersById[playerId]; 
-            if (player) {
-                draftPlayer(player, card); // Pass the card element for UI feedback
+            const assignedSlotKey = findAvailableSlot(player.position);
+            if (!assignedSlotKey) {
+                showAlertModal('Position Full', `No available ${player.position} or FLEX spots for ${player.name}.`);
+                return;
             }
+
+            try {
+                appState.roster[assignedSlotKey] = player;
+                appState.draftedPlayers[player.id] = player;
+                appState.currentSalarySpent += player.salary;
+                appState.teamCounts[player.team] = (appState.teamCounts[player.team] || 0) + 1;
+            } catch (error) {
+                 console.error("Error updating app state during draft:", error);
+                 showAlertModal("Draft Error", "An internal error occurred while drafting. Please try again.");
+                 return;
+            }
+
+            cardElement.classList.add('draft-flash');
+            safeSetTimeout(() => cardElement.classList.remove('draft-flash'), CONSTANTS.ANIMATION_DURATION);
+            triggerUpdateAllUI();
         }
 
-        /**
-         * Attempts to draft a player, checking all rules and updating the state.
-         * @param {object} player - The player object to draft.
-         * @param {HTMLElement} cardElement - The DOM element of the player card.
-         */
-        function draftPlayer(player, cardElement) { 
-            // Rule Check 1: Is player already drafted?
-            if (draftedPlayers[player.id]) return;
-            
-            // Rule Check 2: Can we afford this player?
-            if (currentSalarySpent + player.salary > initialSalaryCap) { 
-                showAlertModal('Salary Cap Exceeded', `You do not have enough salary remaining to draft ${player.name}.`);
-                return;
-            }
-
-            // Rule Check 3: Is the team limit reached?
-            if ((teamCounts[player.team] || 0) >= MAX_PLAYERS_PER_TEAM) { 
-                showAlertModal('Team Limit Reached', `You already have ${MAX_PLAYERS_PER_TEAM} players from the ${player.teamFullName}.`);
-                return;
-            }
-            
-            // Find an open roster slot
-            let assignedSlotKey = null;
-            const primarySlotKeys = rosterSlotConfig[player.position]?.slots || [];
+        function findAvailableSlot(position) {
+            const primarySlotKeys = rosterSlotConfig[position]?.slots || [];
             for (const slotKey of primarySlotKeys) {
-                if (!roster[slotKey]) {
-                    assignedSlotKey = slotKey;
-                    break;
-                }
+                if (!appState.roster[slotKey]) return slotKey;
             }
-            // If primary slots are full, check FLEX for eligible players
-            if (!assignedSlotKey && (player.position === "RB" || player.position === "WR" || player.position === "TE") && !roster.FLEX) {
-                 assignedSlotKey = "FLEX";
+            if (['RB', 'WR', 'TE'].includes(position) && !appState.roster.FLEX) {
+                 return "FLEX";
             }
+            return null;
+        }
 
-            // Rule Check 4: Was there an open slot?
-            if (!assignedSlotKey) { 
-                showAlertModal('Position Full', `There are no available roster spots for a ${player.position}.`);
+        function removePlayer(playerId, slotKey) {
+            const player = appState.draftedPlayers[playerId];
+            if (!player) {
+                console.error(`Attempted to remove player not found in drafted list: ID ${playerId}`);
+                showAlertModal("Error", "Could not find the player to remove. Please refresh.");
                 return;
             }
 
-            // --- Update State ---
-            roster[assignedSlotKey] = player;
-            draftedPlayers[player.id] = player;
-            currentSalarySpent += player.salary;
-            teamCounts[player.team] = (teamCounts[player.team] || 0) + 1;
-            
-            // --- Update UI ---
-            cardElement.classList.add('draft-flash'); // Add visual feedback
-            setTimeout(() => cardElement.classList.remove('draft-flash'), 500);
-            updateAllUI();
+             try {
+                appState.currentSalarySpent -= player.salary || 0;
+                if (appState.teamCounts[player.team]) {
+                     appState.teamCounts[player.team]--;
+                     if (appState.teamCounts[player.team] <= 0) delete appState.teamCounts[player.team];
+                } else {
+                     console.warn(`Attempted to decrement team count for ${player.team}, but count was missing.`);
+                }
+                delete appState.draftedPlayers[playerId];
+                appState.roster[slotKey] = null;
+            } catch(error) {
+                console.error("Error updating app state during removal:", error);
+                showAlertModal("Remove Error", "An internal error occurred while removing the player.");
+                return;
+            }
+
+            triggerUpdateAllUI();
         }
 
-        /**
-         * Removes a player from the roster and updates the state.
-         * @param {string} playerId - The ID of the player to remove.
-         * @param {string} slotKey - The roster slot the player is being removed from.
-         */
-        function removePlayer(playerId, slotKey) {
-            const player = draftedPlayers[playerId];
-            if (!player) return;
-
-            // --- Update State ---
-            currentSalarySpent -= player.salary;
-            teamCounts[player.team]--;
-            if (teamCounts[player.team] === 0) delete teamCounts[player.team];
-            delete draftedPlayers[playerId];
-            roster[slotKey] = null;
-
-            // --- Update UI ---
-            updateAllUI();
-        }
-        
         // =================================================================================
         // --- UI RENDERING AND UPDATES ---
         // =================================================================================
-        
-        /**
-         * A central function to call all UI update functions after a state change.
-         */
-        function updateAllUI() { 
-            updateSalaryUI();
-            updateRosterCount();
-            renderRosterSlots(); 
-            updatePlayerAvailabilityInPool(); 
-            checkRosterFull();
-        }
 
-        /**
-         * Renders the entire player pool, creating sections and cards for each player.
-         */
         function renderPlayerPool() {
-            playerPoolContainer.innerHTML = ''; 
+            if (!uiElements.playerPoolContainer) return;
+            uiElements.playerPoolContainer.innerHTML = '';
+            const fragment = document.createDocumentFragment();
             const positionOrder = ["QB", "RB", "WR", "TE", "DST", "K"];
+
             positionOrder.forEach((posKey) => {
-                if (allPlayersByPosition[posKey] && allPlayersByPosition[posKey].length > 0) {
+                const players = allPlayersByPosition[posKey];
+                if (players && players.length > 0) {
                     const section = document.createElement('section');
-                    section.className = 'position-group'; 
+                    section.className = 'position-group';
                     section.id = `section-${posKey}`;
+
                     const header = document.createElement('h2');
-                    header.className = 'text-2xl font-semibold p-4 flex justify-between items-center'; 
-                    
+                    header.className = 'text-2xl font-semibold p-4 flex justify-between items-center';
+                    header.setAttribute('aria-expanded', 'true');
+                    header.setAttribute('aria-controls', `grid-${posKey}`);
+                    header.setAttribute('tabindex', '0');
+                    header.setAttribute('role', 'button');
+
                     let selectCountText = "";
                     const config = rosterSlotConfig[posKey];
                     if (config) {
@@ -775,255 +929,317 @@
                     }
                     header.innerHTML = `
                         <span>${posKey} <span class="text-sm font-normal text-gray-400">${selectCountText}</span></span>
-                        <svg class="collapse-icon w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                    `; 
+                        <svg class="collapse-icon w-6 h-6 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    `;
                     section.appendChild(header);
 
                     const grid = document.createElement('div');
+                    grid.id = `grid-${posKey}`;
                     grid.className = 'player-card-grid grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 px-4 pt-4 pb-4';
-                    
-                    allPlayersByPosition[posKey].sort((a, b) => b.salary - a.salary).forEach(player => {
-                        grid.appendChild(createPlayerCard(player)); 
-                    });
+
+                    try {
+                        players.sort((a, b) => (b.salary || 0) - (a.salary || 0)).forEach(player => {
+                            if (player) {
+                                 const cardElement = createPlayerCard(player);
+                                 if (cardElement) grid.appendChild(cardElement);
+                            }
+                        });
+                    } catch (error) {
+                         console.error(`Error rendering player grid for position ${posKey}:`, error);
+                         grid.innerHTML = `<p class="text-red-500 col-span-full">Error loading ${posKey} players.</p>`;
+                    }
                     section.appendChild(grid);
-                    playerPoolContainer.appendChild(section);
+                    fragment.appendChild(section);
                 }
             });
+            uiElements.playerPoolContainer.appendChild(fragment);
         }
 
-        /**
-         * Creates the HTML element for a single player card.
-         * @param {object} player - The player data object.
-         * @returns {HTMLElement} The created player card element.
-         */
         function createPlayerCard(player) {
+            if (!player || !player.id || typeof player.name === 'undefined' || typeof player.team === 'undefined') {
+                console.warn("Attempted to create card for invalid player data:", player);
+                return null;
+            }
+
             const card = document.createElement('div');
-            card.className = 'player-card'; 
+            card.className = 'player-card';
             card.dataset.playerId = player.id;
-            card.setAttribute('tabindex', '0'); // For keyboard accessibility
+            card.setAttribute('tabindex', '0');
             card.setAttribute('role', 'button');
-            
-            const placeholderUrl = `https://placehold.co/40x40/1c1e24/9ca3af?text=${player.name.charAt(0)}`;
-            
-            card.innerHTML = `
-                <div class="flex justify-between items-center">
-                    <div class="flex items-center">
-                        <img src="${player.imageUrl}" alt="${player.name}" class="w-10 h-10 rounded-full mr-2 border-2 border-[var(--accent)] object-cover bg-[var(--bg-light)]" loading="lazy" onerror="this.onerror=null;this.src='${placeholderUrl}';">
-                        <div>
-                            <h3 class="text-sm font-semibold">${player.name}</h3>
-                            <p class="text-xs text-[var(--text-muted)]">${player.team}</p>
-                        </div>
-                    </div>
-                    <div class="text-sm font-bold text-[var(--yellow)]">${formatToMillions(player.salary)}</div>
-                </div>
+            card.setAttribute('aria-label', `Draft ${player.name}`);
+
+            const fallbackInitial = document.createElement('div');
+            fallbackInitial.className = 'player-fallback-initial';
+            fallbackInitial.textContent = player.name.charAt(0)?.toUpperCase() || '?';
+            fallbackInitial.setAttribute('aria-hidden', 'true');
+
+            const img = document.createElement('img');
+            img.src = player.imageUrl || '';
+            img.alt = "";
+            img.className = "player-image w-10 h-10 rounded-full mr-2 border-2 border-[var(--accent)] object-cover bg-[var(--bg-light)]";
+            img.loading = "lazy";
+
+            img.onerror = function() {
+                this.style.display = 'none';
+                const fallback = this.nextElementSibling;
+                if (fallback && fallback.classList.contains('player-fallback-initial')) {
+                     fallback.classList.add('is-visible');
+                }
+            };
+            img.onload = function () {
+                 const fallback = this.nextElementSibling;
+                 if (fallback && fallback.classList.contains('player-fallback-initial')) {
+                     fallback.classList.remove('is-visible');
+                 }
+            };
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = "flex justify-between items-center";
+
+            const leftDiv = document.createElement('div');
+            leftDiv.className = "flex items-center";
+
+            const nameTeamDiv = document.createElement('div');
+            nameTeamDiv.innerHTML = `
+                <h3 class="text-sm font-semibold">${player.name}</h3>
+                <p class="text-xs text-[var(--text-muted)]">${player.team}</p>
             `;
+
+            leftDiv.appendChild(img);
+            leftDiv.appendChild(fallbackInitial);
+            leftDiv.appendChild(nameTeamDiv);
+
+            const rightDiv = document.createElement('div');
+            rightDiv.className = "text-sm font-bold text-[var(--yellow)]";
+            rightDiv.textContent = formatToMillions(player.salary);
+
+            contentDiv.appendChild(leftDiv);
+            contentDiv.appendChild(rightDiv);
+            card.appendChild(contentDiv);
+
             return card;
         }
-        
-        /**
-         * Updates the visual state (e.g., drafted, unaffordable) of all player cards in the pool.
-         */
+
         function updatePlayerAvailabilityInPool() {
-            const remainingSal = initialSalaryCap - currentSalarySpent;
-            const allCards = document.querySelectorAll('#player-pool-container .player-card');
+            const remainingSal = CONSTANTS.INITIAL_SALARY_CAP - appState.currentSalarySpent;
+            const allCards = uiElements.playerPoolContainer?.querySelectorAll('.player-card');
+            if (!allCards) return;
 
             allCards.forEach(card => {
                 const playerId = card.dataset.playerId;
-                const player = playersById[playerId]; 
-                if (!player) return;
+                const player = appState.playersById?.[playerId];
+                if (!player) {
+                     card.classList.add('player-unavailable');
+                     card.title = "Player data error";
+                     card.setAttribute('aria-disabled', 'true');
+                     card.setAttribute('aria-label', "Player data error");
+                     return;
+                }
 
                 card.classList.remove('player-drafted', 'player-unavailable');
-                card.title = ""; 
+                let titleText = `Draft ${player.name}`;
+                let isDisabled = false;
 
-                if (draftedPlayers[playerId]) { 
+                if (appState.draftedPlayers[playerId]) {
                     card.classList.add('player-drafted');
-                    card.title = "Drafted";
-                    return; 
-                }
-
-                if ((teamCounts[player.team] || 0) >= MAX_PLAYERS_PER_TEAM) {
+                    titleText = "Drafted";
+                    isDisabled = true;
+                } else if ((appState.teamCounts[player.team] || 0) >= CONSTANTS.MAX_PLAYERS_PER_TEAM) {
                     card.classList.add('player-unavailable');
-                    card.title = "Team Limit Reached";
-                    return; 
-                }
-
-                // --- Position Limit Check ---
-                let primarySlotsFull = true;
-                const primarySlotKeysForPos = rosterSlotConfig[player.position]?.slots || [];
-                if (primarySlotKeysForPos.length > 0) {
-                     primarySlotsFull = primarySlotKeysForPos.every(slotKey => roster[slotKey] !== null);
-                } else if (player.position === "TE") { 
-                    primarySlotsFull = true; // TEs have no primary slots
-                }
-
-                let flexSlotFull = roster.FLEX !== null;
-                let canGoInFlex = (player.position === "RB" || player.position === "WR" || player.position === "TE");
-
-                if (primarySlotsFull && (!canGoInFlex || (canGoInFlex && flexSlotFull))) {
-                    let reason = 'Position Full';
-                    if (player.position === "TE" && flexSlotFull) reason = 'FLEX Full';
-                    else if (canGoInFlex && flexSlotFull) reason = 'Position & FLEX Full';
-                    
+                    titleText = "Team Limit Reached";
+                    isDisabled = true;
+                } else if (!isSlotAvailable(player.position)) {
                     card.classList.add('player-unavailable');
-                    card.title = reason;
-                    return;
+                    titleText = getPositionFullReason(player.position);
+                    isDisabled = true;
+                } else if ((player.salary || 0) > remainingSal) {
+                    card.classList.add('player-unavailable');
+                    titleText = "Unaffordable";
+                    isDisabled = true;
                 }
 
-                // --- Affordability Check ---
-                if (player.salary > remainingSal) {
-                    card.classList.add('player-unavailable');
-                    card.title = "Unaffordable";
-                    return; 
-                }
-                
-                // If no rules are broken, the player is draftable
-                card.title = `Draft ${player.name}`; 
+                card.title = titleText;
+                card.setAttribute('aria-label', titleText);
+                card.setAttribute('aria-disabled', isDisabled.toString());
             });
         }
 
-        /**
-         * Renders the user's current roster in the sidebar.
-         */
+        function isSlotAvailable(position) {
+            const primarySlotKeys = rosterSlotConfig[position]?.slots || [];
+            if (primarySlotKeys.some(slotKey => !appState.roster[slotKey])) return true;
+            if (['RB', 'WR', 'TE'].includes(position) && !appState.roster.FLEX) return true;
+            return false;
+        }
+
+        function getPositionFullReason(position) {
+            const canGoInFlex = ['RB', 'WR', 'TE'].includes(position);
+            const flexSlotFull = appState.roster.FLEX !== null;
+            if (position === "TE" && flexSlotFull) return 'FLEX Full';
+            if (canGoInFlex && flexSlotFull) return 'Position & FLEX Full';
+            return 'Position Full';
+        }
+
         function renderRosterSlots() {
-            rosterSlotsContainer.innerHTML = ''; 
+            if (!uiElements.rosterSlotsContainer) return;
+            uiElements.rosterSlotsContainer.innerHTML = '';
+            const fragment = document.createDocumentFragment();
             const slotOrder = ["QB", "RB1", "RB2", "RB3", "WR1", "WR2", "WR3", "FLEX", "DST", "K"];
+
             slotOrder.forEach(slotKey => {
-                const playerInSlot = roster[slotKey];
+                const playerInSlot = appState.roster[slotKey];
                 const slotDiv = document.createElement('div');
-                slotDiv.className = 'flex justify-between items-center p-3 bg-[var(--bg-light)] rounded-md';
+                slotDiv.className = 'roster-slot flex justify-between items-center p-2 bg-[var(--bg-light)] rounded-md';
                 slotDiv.id = `roster-slot-${slotKey}`;
-                let contentHTML;
+                slotDiv.setAttribute('role', 'listitem');
+
                 if (playerInSlot) {
-                    contentHTML = `
+                    slotDiv.innerHTML = `
                         <div class="roster-slot-filled">
-                            <span class="font-medium">${slotKey}: 
+                            <span class="font-medium text-sm">${slotKey}:
                                 <span class="roster-slot-player-name">${playerInSlot.name}</span>
                                 <span class="text-xs text-[var(--text-muted)]"> - <span class="salary-value">${formatToMillions(playerInSlot.salary)}</span></span>
                             </span>
                         </div>
-                        <button class="text-[var(--error)] hover:text-red-400 text-xs font-semibold" data-player-id="${playerInSlot.id}" data-slot-key="${slotKey}">REMOVE</button>
+                        <button class="text-[var(--error)] hover:text-red-400 text-xs font-semibold px-2 py-1" data-player-id="${playerInSlot.id}" data-slot-key="${slotKey}" aria-label="Remove ${playerInSlot.name} from ${slotKey}">REMOVE</button>
                     `;
+                    const removeButton = slotDiv.querySelector('button');
+                    if (removeButton) {
+                        removeButton.addEventListener('click', (e) => {
+                            const pid = e.target?.dataset?.playerId ?? null;
+                            const sk = e.target?.dataset?.slotKey ?? null;
+                            if (pid && sk) removePlayer(pid, sk);
+                            else {
+                                console.error("Missing data attributes on remove button:", e.target);
+                                showAlertModal("Error", "Could not remove player. Data missing.");
+                            }
+                        });
+                    }
                 } else {
-                    contentHTML = `<span class="font-medium">${slotKey}: <span class="text-[var(--text-muted)] italic">Empty</span></span>`;
+                    slotDiv.innerHTML = `<span class="font-medium text-sm">${slotKey}: <span class="text-[var(--text-muted)] italic">Empty</span></span>`;
                 }
-                slotDiv.innerHTML = contentHTML;
-                if (playerInSlot) {
-                    slotDiv.querySelector('button').addEventListener('click', (e) => {
-                        removePlayer(e.target.dataset.playerId, e.target.dataset.slotKey);
-                    });
-                }
-                rosterSlotsContainer.appendChild(slotDiv);
+                fragment.appendChild(slotDiv);
             });
+            uiElements.rosterSlotsContainer.appendChild(fragment);
         }
 
-        /**
-         * Updates the salary cap display and progress bar.
-         */
         function updateSalaryUI() {
-            const remaining = initialSalaryCap - currentSalarySpent;
-            remainingSalaryEl.textContent = formatToMillions(remaining);
-            const percentageSpent = initialSalaryCap > 0 ? (currentSalarySpent / initialSalaryCap) * 100 : 0;
-            const progressBar = document.getElementById('salary-progress-bar');
-            progressBar.style.width = `${Math.min(percentageSpent, 100)}%`;
-            
-            progressBar.classList.toggle('over-limit', remaining < 0);
-        }
+            const remaining = CONSTANTS.INITIAL_SALARY_CAP - appState.currentSalarySpent;
+            if (uiElements.remainingSalaryEl) {
+                uiElements.remainingSalaryEl.textContent = formatToMillions(remaining);
+            }
+            const percentageSpent = CONSTANTS.INITIAL_SALARY_CAP > 0
+                ? (appState.currentSalarySpent / CONSTANTS.INITIAL_SALARY_CAP) * 100
+                : 0;
 
-        /**
-         * Updates the roster count display.
-         */
-        function updateRosterCount() {
-            const count = Object.keys(draftedPlayers).length;
-            rosterCountEl.textContent = count;
-        }
-        
-        /**
-         * Checks if the roster is full and updates the submit button state.
-         */
-        function checkRosterFull() {
-            const count = Object.keys(draftedPlayers).length;
-            const submitMsgEl = document.getElementById('submit-team-message');
-            const submitButton = document.getElementById('submit-team-button');
-            if (count === ROSTER_SIZE) {
-                submitButton.disabled = false;
-                submitMsgEl.textContent = "Your roster is full and ready to submit!";
-                submitMsgEl.style.color = 'var(--accent)';
-            } else {
-                submitButton.disabled = true;
-                submitMsgEl.textContent = `Draft ${ROSTER_SIZE - count} more players to submit.`;
-                submitMsgEl.style.color = 'var(--text-muted)';
+            if (uiElements.salaryProgressBar) {
+                 uiElements.salaryProgressBar.style.width = `${Math.min(percentageSpent, CONSTANTS.MAX_SALARY_PERCENTAGE)}%`;
+                 const progressBarContainer = uiElements.salaryProgressBar.parentElement;
+                 if (progressBarContainer) {
+                      progressBarContainer.setAttribute('aria-valuenow', Math.round(percentageSpent).toString());
+                 }
+                 uiElements.salaryProgressBar.classList.toggle('over-limit', remaining < 0);
             }
         }
 
-        /**
-         * Displays the custom alert modal with a title and message.
-         * @param {string} title - The title for the modal.
-         * @param {string} message - The message body for the modal.
-         */
-        function showAlertModal(title, message) {
-            modalTitle.textContent = title;
-            modalMessage.textContent = message;
-            alertModal.classList.add('active');
+        function updateRosterCount() {
+            const count = Object.keys(appState.draftedPlayers).length;
+             if (uiElements.rosterCountEl) {
+                uiElements.rosterCountEl.textContent = count;
+            }
         }
 
-        /**
-         * Renders the sticky sub-header for quick navigation.
-         */
+        function checkRosterFull() {
+            const count = Object.keys(appState.draftedPlayers).length;
+            const isFull = count === CONSTANTS.ROSTER_SIZE;
+
+            if (uiElements.submitTeamButton) {
+                uiElements.submitTeamButton.disabled = !isFull;
+                uiElements.submitTeamButton.setAttribute('aria-disabled', (!isFull).toString());
+            }
+            if (uiElements.submitTeamMessage) {
+                if (isFull) {
+                    uiElements.submitTeamMessage.textContent = "Your roster is full and ready to submit!";
+                    uiElements.submitTeamMessage.style.color = 'var(--accent)';
+                } else {
+                    uiElements.submitTeamMessage.textContent = `Draft ${CONSTANTS.ROSTER_SIZE - count} more players to submit.`;
+                    uiElements.submitTeamMessage.style.color = 'var(--text-muted)';
+                }
+            }
+        }
+
+        function showAlertModal(title, message) {
+            if (!uiElements.alertModal || !uiElements.modalTitle || !uiElements.modalMessage || !uiElements.modalCloseBtn) {
+                 console.error("Modal elements not found!");
+                 alert(`${title}\n${message}`);
+                 return;
+            }
+            uiElements.modalTitle.textContent = title;
+            uiElements.modalMessage.textContent = message;
+            uiElements.alertModal.classList.add('active');
+            safeSetTimeout(() => uiElements.modalCloseBtn.focus(), 50);
+        }
+
         function renderSubHeader() {
-            const subHeader = document.getElementById('sub-header');
-            if (!subHeader) return;
-            subHeader.innerHTML = `
-                <div class="container mx-auto px-4 sm:px-6 lg:px-8">
-                    <div class="flex justify-center space-x-4 py-3">
-                        ${Object.keys(allPlayersByPosition).map(posKey => `
-                            <a href="#section-${posKey}" class="text-sm font-semibold text-gray-400 hover:text-white transition-colors">${posKey}</a>
-                        `).join('')}
+            if (!uiElements.subHeader) return;
+            const positionOrder = Object.keys(allPlayersByPosition);
+            try {
+                uiElements.subHeader.innerHTML = `
+                    <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+                        <div class="flex justify-center space-x-4 py-3 overflow-x-auto">
+                            ${positionOrder.map(posKey => `
+                                <a href="#section-${posKey}" class="text-sm font-semibold text-gray-400 hover:text-white transition-colors flex-shrink-0">${posKey}</a>
+                            `).join('')}
+                        </div>
                     </div>
-                </div>
-            `;
+                `;
+            } catch (error) {
+                 console.error("Error rendering sub-header:", error);
+                 uiElements.subHeader.innerHTML = `<p class="text-red-500 text-center text-sm py-2">Error loading position navigation.</p>`;
+            }
         }
 
         // =================================================================================
         // --- DUMMY TAB RENDERING (for frontend prototype) ---
         // =================================================================================
 
-        /**
-         * Renders the content for the Player Scores tab with dummy data.
-         */
         function renderPlayerScoresTab() {
-            const container = document.getElementById('player-scores-list');
-            container.innerHTML = ''; 
+            if (!uiElements.playerScoresList) return;
+            uiElements.playerScoresList.innerHTML = '';
+            const fragment = document.createDocumentFragment();
             const positionOrder = ["QB", "RB", "WR", "TE", "DST", "K"];
             const playoffRoundNames = ["WC", "Div", "Conf", "SB", "Total"];
 
             positionOrder.forEach(posKey => {
-                if (allPlayersByPosition[posKey] && allPlayersByPosition[posKey].length > 0) {
+                const players = allPlayersByPosition[posKey];
+                if (players && players.length > 0) {
                     const section = document.createElement('div');
                     section.className = 'mb-8';
                     section.innerHTML = `<h3 class="text-xl font-semibold text-[var(--accent)] mb-3 border-b border-[var(--accent)] pb-2">${posKey}</h3>`;
-                    
+
                     const table = document.createElement('table');
                     table.className = 'data-table min-w-full text-sm';
                     const thead = table.createTHead();
                     const headerRow = thead.insertRow();
                     ['Player', 'Team', ...playoffRoundNames].forEach(text => {
                         const th = document.createElement('th');
+                        th.scope = 'col';
                         th.textContent = text;
                         if (text !== 'Player' && text !== 'Team') th.classList.add('text-right');
                         headerRow.appendChild(th);
                     });
 
                     const tbody = table.createTBody();
-                    // Create a copy before sorting to avoid mutating the original data
-                    const playersForPos = [...allPlayersByPosition[posKey]].sort((a,b) => (b.totalPoints || 0) - (a.totalPoints || 0));
+                    const playersForPos = [...players].sort((a,b) => (b.totalPoints || 0) - (a.totalPoints || 0));
 
                     playersForPos.forEach(player => {
+                        if (!player) return;
                         const row = tbody.insertRow();
-                        row.insertCell().textContent = player.name;
-                        row.insertCell().textContent = player.team;
-                        (player.playoffScores || [0,0,0,0]).forEach(score => {
+                        row.insertCell().textContent = player.name || 'N/A';
+                        row.insertCell().textContent = player.team || 'N/A';
+                        const scores = player.playoffScores || [0, 0, 0, 0];
+                        scores.forEach(score => {
                             const cell = row.insertCell();
-                            cell.textContent = score !== null ? score.toFixed(1) : '-';
+                            cell.textContent = typeof score === 'number' ? score.toFixed(1) : '-';
                             cell.classList.add('text-right');
                         });
                         const totalCell = row.insertCell();
@@ -1031,17 +1247,16 @@
                         totalCell.classList.add('text-right', 'font-semibold', 'text-[var(--accent)]');
                     });
                     section.appendChild(table);
-                    container.appendChild(section);
+                    fragment.appendChild(section);
                 }
             });
+            uiElements.playerScoresList.appendChild(fragment);
         }
 
-        /**
-         * Renders the content for the Standings tab with dummy data.
-         */
         function renderStandingsTab() {
-            const tbody = document.querySelector('#standings-table tbody');
-            tbody.innerHTML = ''; 
+             if (!uiElements.standingsTableBody) return;
+            uiElements.standingsTableBody.innerHTML = '';
+            const fragment = document.createDocumentFragment();
 
             const dummyStandings = [
                 { rank: 1, teamName: "User1's All-Stars", totalPoints: 285.5 },
@@ -1052,12 +1267,12 @@
                 dummyStandings.push({
                     rank: i,
                     teamName: `User${i}'s Team`,
-                    totalPoints: Math.max(100, 265 - (i * 7.5)),
+                    totalPoints: Math.max(100, 265.8 - (i * 7.5)),
                 });
             }
 
-            dummyStandings.forEach(team => {
-                const row = tbody.insertRow();
+            dummyStandings.sort((a,b) => a.rank - b.rank).forEach(team => {
+                const row = fragment.appendChild(document.createElement('tr'));
                 const rankCell = row.insertCell();
                 const rankBadge = document.createElement('span');
                 rankBadge.classList.add('rank-badge');
@@ -1070,9 +1285,10 @@
 
                 row.insertCell().textContent = team.teamName;
                 const totalPointsCell = row.insertCell();
-                totalPointsCell.textContent = team.totalPoints.toFixed(1);
+                totalPointsCell.textContent = (team.totalPoints || 0).toFixed(1);
                 totalPointsCell.classList.add('font-semibold', 'text-[var(--accent)]');
             });
+            uiElements.standingsTableBody.appendChild(fragment);
         }
 
     </script>

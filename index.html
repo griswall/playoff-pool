@@ -330,10 +330,425 @@
                 <h1 class="text-3xl font-extrabold text-white tracking-tight">Hurd NFL Playoff Pool</h1>
                 <div class="flex items-center space-x-6">
                     <nav class="flex space-x-1 sm:space-x-2">
-                        <a href="#" id="nav-draft-team" class="nav-link active">Draft Team</a>
-                        <a href="#" id="nav-player-scores" class="nav-link">Player Scores</a>
-                        <a href="#" id="nav-standings" class="nav-link">Standings</a>
-                        <a href="#" id="nav-rules" class="nav-link">Rules</a>
+                        <!-- **** FIX: Updated hrefs to point to the correct tab IDs **** -->
+                        <a href="#draft-team-view" id="nav-draft-team" class="nav-link active">Draft Team</a>
+                        <a href="#player-scores-view" id="nav-player-scores" class="nav-link">Player Scores</a>
+                        <a href="#standings-view" id="nav-standings" class="nav-link">Standings</a>
+                        <a href="#rules-view" id="nav-rules" class="nav-link">Rules</a>
+                    </nav>
+                    <div id="user-auth-section" class="flex items-center">
+                        <!-- Logged Out View (default) -->
+                        <a href="login.html" id="login-button" class="nav-link bg-[var(--accent)] text-black font-semibold">Login / Sign Up</a>
+    
+                        <!-- Logged In View (hidden by default) -->
+                        <div id="user-profile-section" class="hidden items-center space-x-4">
+                            <a href="my-teams.html" id="user-email-link" class="text-sm text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors">
+                                <span id="user-email-display">user@example.com</span>
+                            </a>
+                            <button id="logout-button" class="text-sm font-semibold text-gray-400 hover:text-white transition-colors">Logout</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <nav id="sub-header" class="sub-header sticky top-20 z-20"></nav>
+
+    <main class="container mx-auto p-4 sm:p-6 lg:p-8">
+        <div id="draft-team-view" class="tab-content active flex-col lg:flex-row gap-6">
+            <div id="player-pool-container" class="w-full lg:w-2/3 space-y-10" role="region" aria-label="Available players">
+                <!-- Player cards will be dynamically inserted here by JavaScript -->
+            </div>
+            <aside class="w-full lg:w-1/3 space-y-6 lg:sticky lg:top-40 self-start">
+                <!-- Salary Cap Section -->
+                <div class="content-section p-4">
+                    <h3 class="text-lg font-semibold text-white mb-1">Salary Cap</h3>
+                    <div class="text-2xl salary-value mb-0.5" id="total-salary-cap" aria-label="Total salary cap">$38.5M</div>
+                    <div class="text-base text-gray-300">Remaining: <span class="font-semibold salary-value" id="remaining-salary" aria-live="polite">$38.5M</span></div>
+                    <div class="salary-cap-bar mt-2" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                        <div id="salary-progress-bar" class="salary-cap-fill" style="width: 0%"></div>
+                    </div>
+                </div>
+                 <!-- Roster Section -->
+                <div class="content-section p-4">
+                    <h3 class="text-lg font-semibold text-white mb-3">Your Current Roster (<span id="roster-count" aria-live="polite">0</span>/10)</h3>
+                    <div id="roster-slots-container" class="space-y-2 text-gray-300" role="list" aria-label="Current roster">
+                        <!-- Roster slots -->
+                    </div>
+                    <button id="submit-team-button" class="mt-4 w-full nav-link bg-[var(--accent)] text-black font-bold text-lg py-2 disabled:opacity-50 disabled:cursor-not-allowed" disabled aria-label="Submit team">Submit Team</button>
+                    <p id="submit-team-message" class="text-xs text-center mt-2 text-[var(--text-muted)]" aria-live="polite">Draft 10 players to submit.</p>
+                    <p class="text-xs text-center mt-1 text-[var(--text-muted)]">(Max 4 entries per user)</p>
+                </div>
+            </aside>
+        </div>
+
+        <div id="player-scores-view" class="tab-content content-section">
+            <h2 class="text-2xl sm:text-3xl font-extrabold text-white mb-6">Player Scores</h2>
+            <div id="player-scores-list" class="space-y-8">
+                {/* Player scores by position will be inserted here */}
+            </div>
+        </div>
+
+        <div id="standings-view" class="tab-content content-section">
+            <h2 class="text-2xl sm:text-3xl font-extrabold text-white mb-6">Pool Standings</h2>
+            <div class="overflow-x-auto">
+                <table id="standings-table" class="data-table min-w-full">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Team Name / User</th>
+                            <th>Total Points</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {/* Standings rows will be inserted here */}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div id="rules-view" class="tab-content content-section">
+            <h2 class="text-2xl sm:text-3xl font-extrabold text-white mb-6">Pool Rules</h2>
+            <div class="prose prose-invert max-w-none text-gray-300 space-y-4">
+                <p>Welcome to the Hurd NFL Playoff Pool! Here's how to play:</p>
+                <h4 class="font-semibold text-lg text-gray-100">1. Drafting Your Team:</h4>
+                <ul>
+                    <li>You have a salary cap of <strong class="salary-value">$38.5M</strong> to build your team.</li>
+                    <li>Your roster must consist of VScode,
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hurd NFL Playoff Pool</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <!-- 1. Import Supabase Library -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --accent: #00d084;
+            --accent-hover: #00b371;
+            --bg-deep: #0f1115;
+            --bg-medium: #1c1e24;
+            --bg-light: #292d36;
+            --text-primary: #e5e7eb;
+            --text-muted: #9ca3af;
+            --error: #ef4444;
+            --yellow: #facc15;
+        }
+        html {
+            scroll-behavior: smooth;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-deep);
+            color: var(--text-primary);
+        }
+        .main-header {
+            background-color: var(--bg-medium);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            border-bottom: 1px solid var(--bg-light);
+        }
+        .nav-link {
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+            color: var(--text-muted);
+        }
+        .nav-link.active {
+            background: var(--accent);
+            color: #000;
+            box-shadow: 0 0 0 3px rgba(0, 208, 132, 0.3);
+        }
+        .nav-link:hover:not(.active) {
+            background: var(--bg-light);
+            color: white;
+        }
+        .sub-header {
+            background-color: var(--bg-deep);
+            border-bottom: 1px solid var(--bg-light);
+        }
+        .position-group h2 {
+            background-color: var(--bg-medium);
+            color: white;
+            font-weight: 700;
+            border-bottom: 2px solid var(--bg-light);
+            cursor: pointer;
+        }
+        .collapse-icon {
+            transition: transform 0.3s ease;
+        }
+        .section-collapsed .collapse-icon {
+            transform: rotate(-90deg);
+        }
+        .player-card-grid {
+            display: grid;
+            max-height: 5000px; /* Large enough for all content */
+            overflow: hidden;
+            transition: max-height 0.5s ease-in-out, padding 0.5s ease-in-out;
+        }
+        .section-collapsed .player-card-grid {
+            max-height: 0;
+            padding-top: 0;
+            padding-bottom: 0;
+        }
+        .player-card {
+            background-color: var(--bg-medium);
+            border: 1px solid transparent;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            cursor: pointer;
+        }
+        .player-card:hover:not(.player-drafted):not(.player-unavailable) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+            border-color: var(--accent);
+        }
+         /* Style for keyboard focus */
+        .player-card:focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
+        }
+        .player-drafted {
+            opacity: 0.6;
+            pointer-events: none; /* Disables clicks */
+        }
+        .player-unavailable {
+            opacity: 0.4;
+            pointer-events: none; /* Disables clicks */
+        }
+        .draft-flash {
+            animation: flash 0.5s ease-out;
+        }
+        @keyframes flash {
+            0% { box-shadow: 0 0 15px var(--accent); }
+            100% { box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); }
+        }
+        .salary-cap-bar {
+            height: 8px;
+            background: var(--bg-light);
+            border-radius: 9999px;
+            overflow: hidden;
+        }
+        .salary-cap-fill {
+            height: 100%;
+            background: var(--accent);
+            transition: width 0.3s ease-in-out;
+        }
+        .salary-cap-fill.over-limit {
+             background: var(--error);
+        }
+        .rank-badge {
+            border-radius: 9999px;
+            padding: 0.3rem 0.6rem;
+            font-weight: 700;
+            font-size: 0.75rem;
+        }
+        .rank-1 { background: gold; color: #000; }
+        .rank-2 { background: silver; color: #000; }
+        .rank-3 { background: #cd7f32; color: #fff; }
+        .rank-other { background-color: var(--bg-light); color: var(--text-primary); }
+
+        .content-section {
+            background-color: var(--bg-medium);
+            border: 1px solid var(--bg-light);
+            padding: 1rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        .salary-value {
+            color: var(--yellow);
+            font-weight: 700;
+        }
+
+        .roster-slot-filled { color: #B0E0E6; }
+        .roster-slot-player-name { font-weight: 700; }
+
+        .data-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+        .data-table th, .data-table td {
+            padding: 0.85rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--bg-light);
+        }
+        .data-table th {
+            background-color: var(--bg-light);
+            font-weight: 700;
+            color: var(--text-primary);
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            letter-spacing: 0.05em;
+        }
+        .data-table td {
+            color: var(--text-primary);
+        }
+        .data-table tbody tr {
+            transition: background-color 0.15s ease;
+        }
+        .data-table tbody tr:hover { background-color: var(--bg-light); }
+
+        .prose-invert ul > li::before { background-color: var(--accent); }
+
+        ::-webkit-scrollbar { width: 10px; height: 10px; }
+        ::-webkit-scrollbar-track { background: var(--bg-deep); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: var(--bg-light); border-radius: 10px; border: 2px solid var(--bg-deep); }
+        ::-webkit-scrollbar-thumb:hover { background: var(--border); }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        #draft-team-view.active {
+            display: flex;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.75);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal-box {
+            background-color: var(--bg-medium);
+            color: var(--text-primary);
+            padding: 2rem;
+            border-radius: 0.75rem;
+            border: 1px solid var(--bg-light);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            width: 90%;
+            max-width: 450px;
+            transform: scale(0.95);
+            transition: transform 0.3s ease;
+        }
+        .modal-overlay.active .modal-box {
+            transform: scale(1);
+        }
+        .modal-close-button {
+            background-color: var(--accent);
+            color: #000;
+            font-weight: 600;
+            border-radius: 0.5rem;
+            padding: 0.6rem 1.5rem;
+            transition: background-color 0.2s ease;
+        }
+        .modal-close-button:hover {
+            background-color: var(--accent-hover);
+        }
+
+        /* New Prompt Modal Styles */
+        .prompt-input {
+            background-color: var(--bg-deep);
+            border: 1px solid var(--bg-light);
+            color: var(--text-primary);
+            width: 100%;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            margin-top: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .prompt-input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(0, 208, 132, 0.3);
+        }
+        .prompt-button {
+            padding: 0.6rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            transition: background-color 0.2s ease;
+        }
+        .prompt-confirm {
+            background-color: var(--accent);
+            color: #000;
+        }
+        .prompt-confirm:hover {
+            background-color: var(--accent-hover);
+        }
+        .prompt-cancel {
+            background-color: var(--bg-light);
+            color: var(--text-primary);
+        }
+        .prompt-cancel:hover {
+            background-color: var(--bg-deep);
+        }
+
+        /* Loading Spinner Styles */
+        .loading-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 2000; /* High z-index */
+            display: none; /* Hidden by default */
+            align-items: center;
+            justify-content: center;
+        }
+        .loading-overlay.active {
+            display: flex; /* Shown when active */
+        }
+        .loading-spinner {
+            border: 4px solid var(--bg-light);
+            border-top: 4px solid var(--accent);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Image Fallback Styles */
+        .player-fallback-initial {
+            display: none;             /* ** Corrected: Initially hidden ** */
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+            border: 2px solid var(--accent);
+            background-color: var(--bg-light);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: bold;
+            color: var(--text-muted);
+            display: none; /* ** Explicitly set to none ** */
+        }
+        .player-fallback-initial.is-visible {
+            display: flex;             /* ** only shown when JS adds this class ** */
+        }
+
+        .roster-slot { 
+            padding: 0.5rem; /* ** Using your new class for roster slot padding ** */
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <header class="main-header sticky top-0 z-30">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-20">
+                <h1 class="text-3xl font-extrabold text-white tracking-tight">Hurd NFL Playoff Pool</h1>
+                <div class="flex items-center space-x-6">
+                    <nav class="flex space-x-1 sm:space-x-2">
+                        <a href="#draft-team-view" id="nav-draft-team" class="nav-link active">Draft Team</a>
+                        <a href="#player-scores-view" id="nav-player-scores" class="nav-link">Player Scores</a>
+                        <a href="#standings-view" id="nav-standings" class="nav-link">Standings</a>
+                        <a href="#rules-view" id="nav-rules" class="nav-link">Rules</a>
                     </nav>
                     <div id="user-auth-section" class="flex items-center">
                         <!-- Logged Out View (default) -->

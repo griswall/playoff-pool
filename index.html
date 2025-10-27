@@ -357,7 +357,7 @@
     <main class="container mx-auto p-4 sm:p-6 lg:p-8">
         <div id="draft-team-view" class="tab-content active flex-col lg:flex-row gap-6">
             <div id="player-pool-container" class="w-full lg:w-2/3 space-y-10" role="region" aria-label="Available players">
-                <!-- Player cards will be dynamically inserted here by JavaScript -->
+                {/* Player cards will be dynamically inserted here by JavaScript */}
             </div>
             <aside class="w-full lg:w-1/3 space-y-6 lg:sticky lg:top-40 self-start">
                 <!-- Salary Cap Section -->
@@ -373,7 +373,7 @@
                 <div class="content-section p-4">
                     <h3 class="text-lg font-semibold text-white mb-3">Your Current Roster (<span id="roster-count" aria-live="polite">0</span>/10)</h3>
                     <div id="roster-slots-container" class="space-y-2 text-gray-300" role="list" aria-label="Current roster">
-                        <!-- Roster slots -->
+                        {/* Roster slots */}
                     </div>
                     <button id="submit-team-button" class="mt-4 w-full nav-link bg-[var(--accent)] text-black font-bold text-lg py-2 disabled:opacity-50 disabled:cursor-not-allowed" disabled aria-label="Submit team">Submit Team</button>
                     <p id="submit-team-message" class="text-xs text-center mt-2 text-[var(--text-muted)]" aria-live="polite">Draft 10 players to submit.</p>
@@ -697,8 +697,7 @@
         function initializeUI() {
             measurePerformance('renderPlayerPool', renderPlayerPool);
             measurePerformance('renderRosterSlots', renderRosterSlots);
-            measurePerformance('renderPlayerScoresTab', renderPlayerScoresTab); 
-            measurePerformance('renderStandingsTab', renderStandingsTab);   
+            // Don't render scores/standings until data is fetched
             triggerUpdateAllUI(); 
             measurePerformance('renderSubHeader', renderSubHeader);
         }
@@ -728,13 +727,17 @@
                 const urlParams = new URLSearchParams(window.location.search);
                 const teamIdToEdit = urlParams.get('edit_team_id');
 
-                await fetchPlayers(); 
+                await fetchPlayersAndScores(); // **MODIFIED: Fetch players AND scores**
 
                 if (teamIdToEdit) {
                     await loadTeamForEditing(teamIdToEdit);
                 } else {
                     hideLoadingState();
                 }
+                
+                // Now that data is loaded, render the tabs that depend on it
+                measurePerformance('renderPlayerScoresTab', renderPlayerScoresTab); 
+                measurePerformance('renderStandingsTab', renderStandingsTab);
             }
         }
 
@@ -761,66 +764,66 @@
             hideLoadingState();
         }
 
-        async function fetchPlayers() {
+        /**
+         * Fetches all players AND all scores, then populates the app state.
+         */
+        async function fetchPlayersAndScores() {
             showLoadingState(); 
-            let { data: players, error } = await supabaseClient
-                .from('players')
-                .select('*');
-
-            if (error) {
-                console.error("Error fetching players:", error.message);
-                showAlertModal("Data Error", "Could not load player data from the database. Please try refreshing.");
-                hideLoadingState();
-                return;
-            }
-
-            // ** NEW: Fetch scores at the same time **
-            let { data: scoresData, error: scoresError } = await supabaseClient
-                .from('player_scores')
-                .select('player_id, playoff_round, points');
-
-            if (scoresError) {
-                console.error("Error fetching player scores:", scoresError.message);
-                // Non-critical error, we can continue, scores will just be 0
-            }
-
-            // Create a fast lookup map for the scores
-            const scoresMap = (scoresData || []).reduce((acc, score) => {
-                const key = `${score.player_id}-${score.playoff_round}`;
-                acc[key] = score.points;
-                return acc;
-            }, {});
-
-            appState.allPlayersByPosition = { QB: [], RB: [], WR: [], TE: [], DST: [], K: [] };
-
-            players.forEach(p => {
-                // ** NEW: Calculate scores and totals as we process players **
-                const playoffScores = [
-                    scoresMap[`${p.id}-WC`] || 0,
-                    scoresMap[`${p.id}-DIV`] || 0,
-                    scoresMap[`${p.id}-CONF`] || 0,
-                    scoresMap[`${p.id}-SB`] || 0
+            try {
+                // Fetch players and scores in parallel
+                const [playerPromise, scoresPromise] = [
+                    supabaseClient.from('players').select('*'),
+                    supabaseClient.from('player_scores').select('player_id, playoff_round, points')
                 ];
-                const totalPoints = playoffScores.reduce((sum, score) => sum + (score || 0), 0);
 
-                const player = {
-                    ...p,
-                    teamFullName: TEAMS[p.team]?.name || p.name,
-                    imageUrl: p.position === 'DST'
-                        ? `https://a.espncdn.com/i/teamlogos/nfl/500/${p.id}.png`
-                        : `https://a.espncdn.com/i/headshots/nfl/players/full/${p.id}.png`,
-                    playoffScores: playoffScores, // Use calculated scores
-                    totalPoints: totalPoints      // Use calculated total
-                };
+                const [{ data: players, error: playersError }, { data: scoresData, error: scoresError }] = await Promise.all([playerPromise, scoresPromise]);
 
-                if (appState.allPlayersByPosition[player.position]) {
-                    appState.allPlayersByPosition[player.position].push(player);
-                    appState.playersById[player.id] = player;
-                }
-            });
+                if (playersError) throw playersError;
+                if (scoresError) throw scoresError; // Scores are critical now
+
+                // Create a fast lookup map for the scores
+                const scoresMap = (scoresData || []).reduce((acc, score) => {
+                    const key = `${score.player_id}-${score.playoff_round}`;
+                    acc[key] = score.points;
+                    return acc;
+                }, {});
+
+                appState.allPlayersByPosition = { QB: [], RB: [], WR: [], TE: [], DST: [], K: [] };
+
+                players.forEach(p => {
+                    // Calculate scores and totals as we process players
+                    const playoffScores = [
+                        scoresMap[`${p.id}-WC`] || 0,
+                        scoresMap[`${p.id}-DIV`] || 0,
+                        scoresMap[`${p.id}-CONF`] || 0,
+                        scoresMap[`${p.id}-SB`] || 0
+                    ];
+                    const totalPoints = playoffScores.reduce((sum, score) => sum + (score || 0), 0);
+
+                    const player = {
+                        ...p,
+                        teamFullName: TEAMS[p.team]?.name || p.name,
+                        imageUrl: p.position === 'DST'
+                            ? `https://a.espncdn.com/i/teamlogos/nfl/500/${p.id}.png`
+                            : `https://a.espncdn.com/i/headshots/nfl/players/full/${p.id}.png`,
+                        playoffScores: playoffScores, // Use calculated scores
+                        totalPoints: totalPoints      // Use calculated total
+                    };
+
+                    if (appState.allPlayersByPosition[player.position]) {
+                        appState.allPlayersByPosition[player.position].push(player);
+                        appState.playersById[player.id] = player;
+                    }
+                });
+
+                initializeUI(); // Render everything now that we have data
             
-            initializeUI();
-            // Don't hide loading state here, let checkUser or loadTeamForEditing handle it
+            } catch (error) {
+                 console.error("Error fetching data:", error.message);
+                showAlertModal("Data Error", "Could not load data from the database. Please try refreshing.");
+            } finally {
+                // Will be hidden by loadTeamForEditing or checkUser
+            }
         }
 
         async function loadTeamForEditing(teamId) {
@@ -834,7 +837,7 @@
                         user_id,
                         team_players (
                             roster_slot,
-                            players (*)
+                            players (id)
                         )
                     `)
                     .eq('id', teamId)
@@ -849,6 +852,8 @@
                 appState.editingTeamId = teamData.id;
 
                 teamData.team_players.forEach(tp => {
+                    // We only fetched the player ID, so get the full player object
+                    // from the appState.playersById map (which is already populated)
                     const player = appState.playersById[tp.players.id];
                     if (player) {
                         const slot = tp.roster_slot;
@@ -1034,7 +1039,7 @@
             }
         }
 
-        function handleNavLinkClick(event) {
+        async function handleNavLinkClick(event) {
             event.preventDefault();
             const clickedLink = event.currentTarget;
             if (!clickedLink) return;
@@ -1057,6 +1062,12 @@
                      uiElements.tabContents?.forEach(content => {
                         content.classList.toggle('active', content.id === targetId);
                      });
+                     
+                     // ** NEW: Refresh standings when tab is clicked **
+                     if (targetId === 'standings-view') {
+                         await fetchAndRenderStandings();
+                     }
+
                      document.querySelector('main.container')?.scrollIntoView({ behavior: 'smooth' });
                 }
             }
@@ -1552,25 +1563,32 @@
             uiElements.playerScoresList.appendChild(fragment);
         }
 
-        function renderStandingsTab() {
+        async function fetchAndRenderStandings() {
+            if (!uiElements.standingsTableBody) return;
+            // Show loading state inside the table
+            uiElements.standingsTableBody.innerHTML = `<tr><td colspan="3" class="text-center text-[var(--text-muted)] py-8">Loading standings...</td></tr>`;
+
+            try {
+                const { data: standingsData, error } = await supabaseClient.rpc('get_standings');
+                if (error) throw error;
+                renderStandingsTab(standingsData); // Pass live data to render
+            } catch (error) {
+                console.error("Error fetching standings:", error.message);
+                uiElements.standingsTableBody.innerHTML = `<tr><td colspan="3" class="text-center text-[var(--error)] py-8">Could not load standings. ${error.message}</td></tr>`;
+            }
+        }
+
+        function renderStandingsTab(standingsData = []) {
              if (!uiElements.standingsTableBody) return;
-            uiElements.standingsTableBody.innerHTML = '';
+            uiElements.standingsTableBody.innerHTML = ''; // Clear previous standings
             const fragment = document.createDocumentFragment();
 
-            const dummyStandings = [
-                { rank: 1, teamName: "User1's All-Stars", totalPoints: 285.5 },
-                { rank: 2, teamName: "Gridiron Gurus (User2)", totalPoints: 270.0 },
-                { rank: 3, teamName: "The Champs (User3)", totalPoints: 265.8 },
-            ];
-             for (let i = 4; i <= 15; i++) {
-                dummyStandings.push({
-                    rank: i,
-                    teamName: `User${i}'s Team`,
-                    totalPoints: Math.max(100, 265.8 - (i * 7.5)),
-                });
+            if (!standingsData || standingsData.length === 0) {
+                 uiElements.standingsTableBody.innerHTML = `<tr><td colspan="3" class="text-center text-[var(--text-muted)] py-8">No teams have been submitted yet.</td></tr>`;
+                 return;
             }
 
-            dummyStandings.sort((a,b) => a.rank - b.rank).forEach(team => {
+            standingsData.forEach(team => {
                 const row = fragment.appendChild(document.createElement('tr'));
                 const rankCell = row.insertCell();
                 const rankBadge = document.createElement('span');
@@ -1582,9 +1600,9 @@
                 else rankBadge.classList.add('rank-other');
                 rankCell.appendChild(rankBadge);
 
-                row.insertCell().textContent = team.teamName;
+                row.insertCell().textContent = team.team_name;
                 const totalPointsCell = row.insertCell();
-                totalPointsCell.textContent = (team.totalPoints || 0).toFixed(1);
+                totalPointsCell.textContent = (team.total_points || 0).toFixed(1);
                 totalPointsCell.classList.add('font-semibold', 'text-[var(--accent)]');
             });
             uiElements.standingsTableBody.appendChild(fragment);

@@ -46,6 +46,10 @@
             padding: 0.5rem 0.75rem;
             text-align: center;
         }
+        /* Remove arrows from number inputs */
+        input[type="text"] {
+            -moz-appearance: textfield;
+        }
         .form-input:focus {
             outline: none;
             border-color: var(--accent);
@@ -159,6 +163,7 @@
         let supabaseClient;
         let allPlayers = []; // To store fetched players
         let playerScores = {}; // To store fetched scores { "player_id-round": points }
+        let adminEmail = "dkusco@gmail.com"; // ** SET YOUR ADMIN EMAIL HERE **
 
         try {
             supabaseClient = getSupabaseClient();
@@ -207,8 +212,12 @@
                 return;
             }
             
-            // **SECURITY TODO:** We need to add a check here to ensure *only* your admin email
-            // can see this page. For now, it just checks if a user is logged in.
+            // ** SECURITY CHECK **
+            // if (data.session.user.email !== adminEmail) {
+            //     alert("Access Denied: This page is for administrators only.");
+            //     window.location.href = "index.html";
+            //     return;
+            // }
 
             await fetchAllData();
         }
@@ -262,7 +271,6 @@
         async function handleSaveScores() {
             showLoading(true);
             const scoreUpdates = [];
-            const rounds = ['WC', 'DIV', 'CONF', 'SB'];
             
             // Find all input fields in the table
             const allInputs = uiElements.tableBody.querySelectorAll('input[data-player-id]');
@@ -271,28 +279,23 @@
                 const playerId = input.dataset.playerId;
                 const round = input.dataset.round;
                 // Parse the value as a float, or null if empty
-                const points = input.value === '' ? null : parseFloat(input.value);
+                const points = input.value.trim() === '' ? null : parseFloat(input.value);
 
                 // Only add to the update array if the value is a valid number or null
-                if (points !== null && !isNaN(points)) {
+                if (points === null || !isNaN(points)) {
                     scoreUpdates.push({
                         player_id_to_update: parseInt(playerId, 10),
                         round_to_update: round,
                         points_to_update: points
                     });
-                } else if (points === null) {
-                     // Handle deletion if needed, or just skip
-                     // For upsert, we might want to send nulls to erase scores
-                     scoreUpdates.push({
-                        player_id_to_update: parseInt(playerId, 10),
-                        round_to_update: round,
-                        points_to_update: null // Explicitly send null
-                    });
+                } else {
+                    // If input is invalid (e.g., "abc"), skip it but warn user
+                    console.warn(`Invalid input skipped for ${playerId} [${round}]: ${input.value}`);
                 }
             });
 
             if (scoreUpdates.length === 0) {
-                alert("No scores to update.");
+                alert("No valid scores to update.");
                 showLoading(false);
                 return;
             }
@@ -340,12 +343,13 @@
                     ${rounds.map(round => `
                         <td class="text-center">
                             <input 
-                                type="number" 
-                                step="0.1" 
+                                type="text" 
+                                inputmode="decimal"
+                                pattern="[0-9.-]*"
                                 class="form-input" 
                                 data-player-id="${player.id}" 
                                 data-round="${round}"
-                                value="${playerScores[`${player.id}-${round}`] || ''}"
+                                value="${playerScores[`${player.id}-${round}`] ?? ''}"
                                 placeholder="0.0"
                             >
                         </td>

@@ -483,19 +483,14 @@
 
 
     <script type="module">
+        import { getSupabaseClient } from './scripts/supabaseClient.js';
         // =================================================================================
         // --- SUPABASE & APP INITIALIZATION ---
         // =================================================================================
         
-        const SUPABASE_URL = 'https://jlsudfmhsmxmxpdtkrzr.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impsc3VkZm1oc214bXhwZHRrcnpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExNDQxNjEsImV4cCI6MjA3NjcyMDE2MX0.zJrz82WArsyFLybmGsxkOAr9HBoHrFhfa2pHwqvojxk';
-
-        let supabaseClient; 
+        let supabaseClient;
         try {
-            if (SUPABASE_URL.includes('PASTE_YOUR') || SUPABASE_ANON_KEY.includes('PASTE_YOUR')) {
-                throw new Error("Supabase keys not set. Please paste your URL and Key into the script.");
-            }
-            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); 
+            supabaseClient = getSupabaseClient();
         } catch (e) {
             console.error("Error initializing Supabase. App may not function correctly.", e.message);
         }
@@ -1165,7 +1160,7 @@
 
             positionOrder.forEach((posKey) => {
                 const players = appState.allPlayersByPosition[posKey]; // **FIX: Use appState**
-                if (players && players.length > 0) {
+                if (Array.isArray(players) && players.length > 0) {
                     const section = document.createElement('section');
                     section.className = 'position-group';
                     section.id = `section-${posKey}`;
@@ -1195,7 +1190,8 @@
                     grid.className = 'player-card-grid grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 px-4 pt-4 pb-4';
 
                     try {
-                        players.sort((a, b) => (b.salary || 0) - (a.salary || 0)).forEach(player => {
+                        const playersSorted = [...players].sort((a, b) => (b.salary || 0) - (a.salary || 0));
+                        playersSorted.forEach(player => {
                             if (player) {
                                  const cardElement = createPlayerCard(player);
                                  if (cardElement) grid.appendChild(cardElement);
@@ -1220,14 +1216,14 @@
 
             const card = document.createElement('div');
             card.className = 'player-card';
-            card.dataset.playerId = player.id;
+            card.dataset.playerId = String(player.id);
             card.setAttribute('tabindex', '0');
             card.setAttribute('role', 'button');
             card.setAttribute('aria-label', `Draft ${player.name}`);
 
             const fallbackInitial = document.createElement('div');
-            fallbackInitial.className = 'player-fallback-initial'; // display: none in CSS
-            fallbackInitial.textContent = player.name.charAt(0)?.toUpperCase() || '?';
+            fallbackInitial.className = 'player-fallback-initial';
+            fallbackInitial.textContent = (player.name?.trim?.()?.charAt(0)?.toUpperCase()) || '?';
             fallbackInitial.setAttribute('aria-hidden', 'true');
 
             const img = document.createElement('img');
@@ -1235,12 +1231,14 @@
             img.alt = "";
             img.className = "player-image w-10 h-10 rounded-full mr-2 border-2 border-[var(--accent)] object-cover bg-[var(--bg-light)]";
             img.loading = "lazy";
+            img.decoding = "async";
+            img.referrerPolicy = 'no-referrer';
 
             img.onerror = function() {
                 this.style.display = 'none';
                 const fallback = this.nextElementSibling;
                 if (fallback && fallback.classList.contains('player-fallback-initial')) {
-                     fallback.classList.add('is-visible'); // Use .is-visible to show
+                     fallback.classList.add('is-visible');
                 }
             };
             img.onload = function () {
@@ -1257,13 +1255,19 @@
             leftDiv.className = "flex items-center";
 
             const nameTeamDiv = document.createElement('div');
-            nameTeamDiv.innerHTML = `
-                <h3 class="text-sm font-semibold">${player.name}</h3>
-                <p class="text-xs text-[var(--text-muted)]">${player.team}</p>
-            `;
+            const nameHeading = document.createElement('h3');
+            nameHeading.className = 'text-sm font-semibold';
+            nameHeading.textContent = player.name ?? '';
+
+            const teamParagraph = document.createElement('p');
+            teamParagraph.className = 'text-xs text-[var(--text-muted)]';
+            teamParagraph.textContent = player.team ?? '';
+
+            nameTeamDiv.appendChild(nameHeading);
+            nameTeamDiv.appendChild(teamParagraph);
 
             leftDiv.appendChild(img);
-            leftDiv.appendChild(fallbackInitial); // Add fallback, hidden by CSS
+            leftDiv.appendChild(fallbackInitial);
             leftDiv.appendChild(nameTeamDiv);
 
             const rightDiv = document.createElement('div');
@@ -1350,29 +1354,57 @@
                 slotDiv.setAttribute('role', 'listitem');
 
                 if (playerInSlot) {
-                    slotDiv.innerHTML = `
-                        <div class="roster-slot-filled">
-                            <span class="font-medium text-sm">${slotKey}:
-                                <span class="roster-slot-player-name">${playerInSlot.name}</span>
-                                <span class="text-xs text-[var(--text-muted)]"> - <span class="salary-value">${formatToMillions(playerInSlot.salary)}</span></span>
-                            </span>
-                        </div>
-                        <button class="text-[var(--error)] hover:text-red-400 text-xs font-semibold px-2 py-1" data-player-id="${playerInSlot.id}" data-slot-key="${slotKey}" aria-label="Remove ${playerInSlot.name} from ${slotKey}">REMOVE</button>
-                    `;
-                    const removeButton = slotDiv.querySelector('button');
-                    if (removeButton) {
-                        removeButton.addEventListener('click', (e) => {
-                            const pid = e.target?.dataset?.playerId ?? null;
-                            const sk = e.target?.dataset?.slotKey ?? null;
-                            if (pid && sk) removePlayer(pid, sk);
-                            else {
-                                console.error("Missing data attributes on remove button:", e.target);
-                                showAlertModal("Error", "Could not remove player. Data missing.");
-                            }
-                        });
-                    }
+                    const filledWrapper = document.createElement('div');
+                    filledWrapper.className = 'roster-slot-filled';
+
+                    const labelSpan = document.createElement('span');
+                    labelSpan.className = 'font-medium text-sm';
+                    labelSpan.appendChild(document.createTextNode(`${slotKey}: `));
+
+                    const nameSpan = document.createElement('span');
+                    nameSpan.className = 'roster-slot-player-name';
+                    nameSpan.textContent = playerInSlot.name ?? '';
+                    labelSpan.appendChild(nameSpan);
+
+                    const salaryWrapper = document.createElement('span');
+                    salaryWrapper.className = 'text-xs text-[var(--text-muted)]';
+                    salaryWrapper.appendChild(document.createTextNode(' - '));
+
+                    const salaryValue = document.createElement('span');
+                    salaryValue.className = 'salary-value';
+                    salaryValue.textContent = formatToMillions(playerInSlot.salary);
+                    salaryWrapper.appendChild(salaryValue);
+
+                    labelSpan.appendChild(salaryWrapper);
+                    filledWrapper.appendChild(labelSpan);
+                    slotDiv.appendChild(filledWrapper);
+
+                    const removeButton = document.createElement('button');
+                    removeButton.className = 'text-[var(--error)] hover:text-red-400 text-xs font-semibold px-2 py-1';
+                    removeButton.dataset.playerId = String(playerInSlot.id);
+                    removeButton.dataset.slotKey = slotKey;
+                    removeButton.setAttribute('aria-label', `Remove ${playerInSlot.name} from ${slotKey}`);
+                    removeButton.textContent = 'REMOVE';
+                    removeButton.addEventListener('click', (e) => {
+                        const pid = e.currentTarget?.dataset?.playerId ?? null;
+                        const sk = e.currentTarget?.dataset?.slotKey ?? null;
+                        if (pid && sk) removePlayer(pid, sk);
+                        else {
+                            console.error("Missing data attributes on remove button:", e.currentTarget);
+                            showAlertModal("Error", "Could not remove player. Data missing.");
+                        }
+                    });
+                    slotDiv.appendChild(removeButton);
                 } else {
-                    slotDiv.innerHTML = `<span class="font-medium text-sm">${slotKey}: <span class="text-[var(--text-muted)] italic">Empty</span></span>`;
+                    const emptyLabel = document.createElement('span');
+                    emptyLabel.className = 'font-medium text-sm';
+                    emptyLabel.appendChild(document.createTextNode(`${slotKey}: `));
+
+                    const emptyValue = document.createElement('span');
+                    emptyValue.className = 'text-[var(--text-muted)] italic';
+                    emptyValue.textContent = 'Empty';
+                    emptyLabel.appendChild(emptyValue);
+                    slotDiv.appendChild(emptyLabel);
                 }
                 fragment.appendChild(slotDiv);
             });
@@ -1485,7 +1517,10 @@
                 if (players && players.length > 0) {
                     const section = document.createElement('div');
                     section.className = 'mb-8';
-                    section.innerHTML = `<h3 class="text-xl font-semibold text-[var(--accent)] mb-3 border-b border-[var(--accent)] pb-2">${posKey}</h3>`;
+                    const sectionHeading = document.createElement('h3');
+                    sectionHeading.className = 'text-xl font-semibold text-[var(--accent)] mb-3 border-b border-[var(--accent)] pb-2';
+                    sectionHeading.textContent = posKey;
+                    section.appendChild(sectionHeading);
 
                     const table = document.createElement('table');
                     table.className = 'data-table min-w-full text-sm';

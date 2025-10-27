@@ -127,20 +127,15 @@
     </div>
 
     <script type="module">
+        import { getSupabaseClient } from './scripts/supabaseClient.js';
+
         // =================================================================================
         // --- SUPABASE & APP INITIALIZATION ---
         // =================================================================================
-        
-        const SUPABASE_URL = 'https://jlsudfmhsmxmxpdtkrzr.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impsc3VkZm1oc214bXhwZHRrcnpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExNDQxNjEsImV4cCI6MjA3NjcyMDE2MX0.zJrz82WArsyFLybmGsxkOAr9HBoHrFhfa2pHwqvojxk';
-        
+
         let supabaseClient;
         try {
-            // Check if the keys are still placeholders
-            if (SUPABASE_URL.includes('PASTE_YOUR') || SUPABASE_ANON_KEY.includes('PASTE_YOUR')) {
-                throw new Error("Supabase keys not set. Please paste your URL and Key into the script.");
-            }
-            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            supabaseClient = getSupabaseClient();
         } catch (e) {
             console.error("Error initializing Supabase.", e.message);
             // We will show an error on the form

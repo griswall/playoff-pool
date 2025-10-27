@@ -223,18 +223,17 @@
     </div>
 
     <script type="module">
+        import { getSupabaseClient } from './scripts/supabaseClient.js';
+
         // =================================================================================
         // --- SUPABASE & APP INITIALIZATION ---
         // =================================================================================
-        const SUPABASE_URL = 'https://jlsudfmhsmxmxpdtkrzr.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impsc3VkZm1oc214bXhwZHRrcnpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExNDQxNjEsImV4cCI6MjA3NjcyMDE2MX0.zJrz82WArsyFLybmGsxkOAr9HBoHrFhfa2pHwqvojxk';
-
         let supabaseClient;
         let currentUser;
         let teamToDelete = null; // Store which team is pending deletion
 
         try {
-            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            supabaseClient = getSupabaseClient();
         } catch (e) {
             console.error("Error initializing Supabase.", e.message);
             alert("Error: Could not connect to the database.");
@@ -444,51 +443,125 @@
         // =================================================================================
 
         function renderTeams(teams) {
-            // Clear existing teams before rendering
             uiElements.myTeamsContainer.innerHTML = '';
             const fragment = document.createDocumentFragment();
-            
+
             teams.forEach((team, index) => {
                 const teamWrapper = document.createElement('div');
-                const isCollapsed = index !== 0; // Collapse all except the first
-                teamWrapper.className = `team-container ${isCollapsed ? 'team-collapsed' : ''}`;
-                teamWrapper.dataset.teamId = team.id;
-                
-                let totalSalary = 0;
-                const playerListItems = team.team_players
-                    .sort((a, b) => (a.roster_slot > b.roster_slot ? 1 : -1)) // Sort players by slot
-                    .map(tp => {
-                        const player = tp.players;
-                        if (player) {
-                            totalSalary += player.salary;
-                            return `
-                                <li class="flex justify-between items-center p-2 bg-[var(--bg-light)] rounded">
-                                    <span class="font-semibold">${tp.roster_slot}: ${player.name}</span>
-                                    <span class="text-sm text-[var(--text-muted)]">${player.position} - ${player.team} | <span class="text-[var(--yellow)]">${formatToMillions(player.salary)}</span></span>
-                                </li>
-                            `;
-                        }
-                        return ''; // Handle case where player data might be missing
-                }).join('');
+                teamWrapper.className = 'team-container';
+                if (index !== 0) teamWrapper.classList.add('team-collapsed');
+                if (typeof team.id !== 'undefined') {
+                    teamWrapper.dataset.teamId = String(team.id);
+                }
 
-                teamWrapper.innerHTML = `
-                    <div class="team-header flex justify-between items-center">
-                        <div>
-                            <h3 class="text-xl font-bold">${team.team_name}</h3>
-                            <p class="text-sm text-[var(--text-muted)]">Submitted: ${new Date(team.created_at).toLocaleString()} | Total Salary: <span class="text-[var(--yellow)]">${formatToMillions(totalSalary)}</span></p>
-                        </div>
-                        <div class="flex items-center space-x-2">
-                             <button class="edit-team-btn text-sm font-semibold text-[var(--accent)] hover:text-[var(--accent-hover)] transition-colors p-2" data-team-id="${team.id}" aria-label="Edit team ${team.team_name}">Edit</button>
-                             <button class="delete-team-btn text-sm font-semibold text-[var(--error)] hover:text-red-400 transition-colors p-2" data-team-id="${team.id}" data-team-name="${team.team_name}" aria-label="Delete team ${team.team_name}">Delete</button>
-                             <svg class="collapse-icon w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                        </div>
-                    </div>
-                    <div class="team-body">
-                        <ul class="space-y-2">
-                            ${playerListItems}
-                        </ul>
-                    </div>
-                `;
+                const safeTeamName = team.team_name ?? 'Unnamed Team';
+                const header = document.createElement('div');
+                header.className = 'team-header flex justify-between items-center';
+
+                const headerInfo = document.createElement('div');
+                const title = document.createElement('h3');
+                title.className = 'text-xl font-bold';
+                title.textContent = safeTeamName;
+
+                const submittedMeta = document.createElement('p');
+                submittedMeta.className = 'text-sm text-[var(--text-muted)]';
+                const submittedDate = team.created_at ? new Date(team.created_at).toLocaleString() : 'Unknown';
+                submittedMeta.appendChild(document.createTextNode(`Submitted: ${submittedDate} | Total Salary: `));
+                const totalSalaryValue = document.createElement('span');
+                totalSalaryValue.className = 'text-[var(--yellow)]';
+                totalSalaryValue.textContent = formatToMillions(0);
+                submittedMeta.appendChild(totalSalaryValue);
+
+                headerInfo.appendChild(title);
+                headerInfo.appendChild(submittedMeta);
+
+                const headerActions = document.createElement('div');
+                headerActions.className = 'flex items-center space-x-2';
+
+                const editButton = document.createElement('button');
+                editButton.className = 'edit-team-btn text-sm font-semibold text-[var(--accent)] hover:text-[var(--accent-hover)] transition-colors p-2';
+                editButton.textContent = 'Edit';
+                if (typeof team.id !== 'undefined') {
+                    editButton.dataset.teamId = String(team.id);
+                }
+                editButton.setAttribute('aria-label', `Edit team ${safeTeamName}`);
+
+                const deleteButton = document.createElement('button');
+                deleteButton.className = 'delete-team-btn text-sm font-semibold text-[var(--error)] hover:text-red-400 transition-colors p-2';
+                deleteButton.textContent = 'Delete';
+                if (typeof team.id !== 'undefined') {
+                    deleteButton.dataset.teamId = String(team.id);
+                }
+                deleteButton.dataset.teamName = safeTeamName;
+                deleteButton.setAttribute('aria-label', `Delete team ${safeTeamName}`);
+
+                const collapseIcon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                collapseIcon.setAttribute('class', 'collapse-icon w-6 h-6 text-gray-400');
+                collapseIcon.setAttribute('fill', 'none');
+                collapseIcon.setAttribute('stroke', 'currentColor');
+                collapseIcon.setAttribute('viewBox', '0 0 24 24');
+                const collapsePath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                collapsePath.setAttribute('stroke-linecap', 'round');
+                collapsePath.setAttribute('stroke-linejoin', 'round');
+                collapsePath.setAttribute('stroke-width', '2');
+                collapsePath.setAttribute('d', 'M19 9l-7 7-7-7');
+                collapseIcon.appendChild(collapsePath);
+
+                headerActions.appendChild(editButton);
+                headerActions.appendChild(deleteButton);
+                headerActions.appendChild(collapseIcon);
+
+                header.appendChild(headerInfo);
+                header.appendChild(headerActions);
+
+                const body = document.createElement('div');
+                body.className = 'team-body';
+                const playerList = document.createElement('ul');
+                playerList.className = 'space-y-2';
+
+                let totalSalary = 0;
+                const sortedPlayers = Array.isArray(team.team_players)
+                    ? [...team.team_players].sort((a, b) => (a.roster_slot > b.roster_slot ? 1 : -1))
+                    : [];
+
+                sortedPlayers.forEach(tp => {
+                    const player = tp?.players;
+                    if (!player) return;
+
+                    if (typeof player.salary === 'number' && !Number.isNaN(player.salary)) {
+                        totalSalary += player.salary;
+                    }
+
+                    const playerItem = document.createElement('li');
+                    playerItem.className = 'flex justify-between items-center p-2 bg-[var(--bg-light)] rounded';
+
+                    const playerSummary = document.createElement('span');
+                    playerSummary.className = 'font-semibold';
+                    const rosterSlot = tp?.roster_slot ?? 'Slot';
+                    playerSummary.textContent = `${rosterSlot}: ${player.name ?? 'Unknown Player'}`;
+
+                    const playerMeta = document.createElement('span');
+                    playerMeta.className = 'text-sm text-[var(--text-muted)]';
+                    const teamName = player.team ?? 'N/A';
+                    const position = player.position ?? 'N/A';
+                    playerMeta.appendChild(document.createTextNode(`${position} - ${teamName} | `));
+
+                    const salarySpan = document.createElement('span');
+                    salarySpan.className = 'text-[var(--yellow)]';
+                    salarySpan.textContent = formatToMillions(player.salary);
+                    playerMeta.appendChild(salarySpan);
+
+                    playerItem.appendChild(playerSummary);
+                    playerItem.appendChild(playerMeta);
+                    playerList.appendChild(playerItem);
+                });
+
+                totalSalaryValue.textContent = formatToMillions(totalSalary);
+
+                body.appendChild(playerList);
+
+                teamWrapper.appendChild(header);
+                teamWrapper.appendChild(body);
                 fragment.appendChild(teamWrapper);
             });
 

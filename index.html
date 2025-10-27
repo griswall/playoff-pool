@@ -317,7 +317,9 @@
             display: flex;             /* ** only shown when JS adds this class ** */
         }
 
-        .roster-slot { padding: 0.5rem; }
+        .roster-slot { 
+            padding: 0.5rem; /* ** Using your new class for roster slot padding ** */
+        }
     </style>
 </head>
 <body class="min-h-screen">
@@ -483,10 +485,12 @@
 
 
     <script type="module">
-        import { getSupabaseClient } from './scripts/supabaseClient.js';
         // =================================================================================
         // --- SUPABASE & APP INITIALIZATION ---
         // =================================================================================
+        
+        // **This imports your new supabaseClient.js file**
+        import { getSupabaseClient } from './scripts/supabaseClient.js';
         
         let supabaseClient;
         try {
@@ -705,7 +709,7 @@
 
         async function checkUser() {
             if (!supabaseClient) {
-                showAlertModal("Connection Error", "Supabase keys are missing. The app cannot connect to the database. Please contact the admin.");
+                showAlertModal("Connection Error", "Supabase client is not initialized. Check your Supabase configuration in scripts/supabaseClient.js.");
                 hideLoadingState();
                 return;
             }
@@ -721,18 +725,14 @@
                 appState.currentSession = data.session;
                 updateAuthUI(true, data.session.user.email);
                 
-                // ** EDIT MODE LOGIC **
-                // Check if an 'edit_team_id' is in the URL
                 const urlParams = new URLSearchParams(window.location.search);
                 const teamIdToEdit = urlParams.get('edit_team_id');
 
-                await fetchPlayers(); // Fetch all players first
+                await fetchPlayers(); 
 
                 if (teamIdToEdit) {
-                    // If we are in edit mode, load that team
                     await loadTeamForEditing(teamIdToEdit);
                 } else {
-                    // Otherwise, just hide the loader
                     hideLoadingState();
                 }
             }
@@ -762,7 +762,7 @@
         }
 
         async function fetchPlayers() {
-            showLoadingState(); // Keep loading state active
+            showLoadingState(); 
             let { data: players, error } = await supabaseClient
                 .from('players')
                 .select('*');
@@ -774,17 +774,43 @@
                 return;
             }
 
+            // ** NEW: Fetch scores at the same time **
+            let { data: scoresData, error: scoresError } = await supabaseClient
+                .from('player_scores')
+                .select('player_id, playoff_round, points');
+
+            if (scoresError) {
+                console.error("Error fetching player scores:", scoresError.message);
+                // Non-critical error, we can continue, scores will just be 0
+            }
+
+            // Create a fast lookup map for the scores
+            const scoresMap = (scoresData || []).reduce((acc, score) => {
+                const key = `${score.player_id}-${score.playoff_round}`;
+                acc[key] = score.points;
+                return acc;
+            }, {});
+
             appState.allPlayersByPosition = { QB: [], RB: [], WR: [], TE: [], DST: [], K: [] };
 
             players.forEach(p => {
+                // ** NEW: Calculate scores and totals as we process players **
+                const playoffScores = [
+                    scoresMap[`${p.id}-WC`] || 0,
+                    scoresMap[`${p.id}-DIV`] || 0,
+                    scoresMap[`${p.id}-CONF`] || 0,
+                    scoresMap[`${p.id}-SB`] || 0
+                ];
+                const totalPoints = playoffScores.reduce((sum, score) => sum + (score || 0), 0);
+
                 const player = {
                     ...p,
                     teamFullName: TEAMS[p.team]?.name || p.name,
                     imageUrl: p.position === 'DST'
                         ? `https://a.espncdn.com/i/teamlogos/nfl/500/${p.id}.png`
                         : `https://a.espncdn.com/i/headshots/nfl/players/full/${p.id}.png`,
-                    playoffScores: [0,0,0,0], 
-                    totalPoints: 0 
+                    playoffScores: playoffScores, // Use calculated scores
+                    totalPoints: totalPoints      // Use calculated total
                 };
 
                 if (appState.allPlayersByPosition[player.position]) {
@@ -792,19 +818,14 @@
                     appState.playersById[player.id] = player;
                 }
             });
-
-            // Don't hide loading state here, let checkUser or loadTeamForEditing handle it
+            
             initializeUI();
+            // Don't hide loading state here, let checkUser or loadTeamForEditing handle it
         }
 
-        /**
-         * Fetches a specific team's data and pre-populates the draft board.
-         * @param {string} teamId - The ID of the team to load for editing.
-         */
         async function loadTeamForEditing(teamId) {
             showLoadingState();
             try {
-                // Fetch the team and its players
                 const { data: teamData, error } = await supabaseClient
                     .from('user_teams')
                     .select(`
@@ -817,33 +838,29 @@
                         )
                     `)
                     .eq('id', teamId)
-                    .eq('user_id', appState.currentUser.id) // RLS handles this, but good to be explicit
+                    .eq('user_id', appState.currentUser.id) 
                     .single();
 
                 if (error) throw error;
                 if (!teamData) throw new Error("Team not found or you don't have permission to edit it.");
 
-                // --- Pre-populate the appState ---
-                resetDraftState(); // Start from a clean slate
+                resetDraftState(); 
                 
                 appState.editingTeamId = teamData.id;
 
                 teamData.team_players.forEach(tp => {
-                    // Re-hydrate the player object from the full players list for consistency
                     const player = appState.playersById[tp.players.id];
                     if (player) {
                         const slot = tp.roster_slot;
-                        // Add player to the roster
                         appState.roster[slot] = player;
                         appState.draftedPlayers[player.id] = player;
                         appState.currentSalarySpent += player.salary;
                         appState.teamCounts[player.team] = (appState.teamCounts[player.team] || 0) + 1;
                     } else {
-                        console.warn(`Player with ID ${tp.players.id} not found in allPlayers list.`);
+                         console.warn(`Player with ID ${tp.players.id} not found in allPlayers list.`);
                     }
                 });
 
-                // --- Update UI for "Edit Mode" ---
                 if (uiElements.submitTeamButton) {
                     uiElements.submitTeamButton.textContent = "Update Team";
                     uiElements.submitTeamButton.setAttribute('aria-label', 'Update your team');
@@ -852,26 +869,21 @@
                     uiElements.submitTeamMessage.textContent = `You are editing "${teamData.team_name}".`;
                 }
                 
-                triggerUpdateAllUI(); // Refresh the entire UI with the loaded data
+                triggerUpdateAllUI(); 
 
             } catch (error) {
                 console.error("Error loading team for editing:", error.message);
                 showAlertModal("Error Loading Team", error.message);
-                window.location.href = "index.html"; // Go back to a clean draft on error
+                window.location.href = "index.html"; 
             } finally {
                 hideLoadingState();
             }
         }
 
-
         // =================================================================================
         // --- CORE DRAFTING LOGIC ---
         // =================================================================================
         
-        /**
-         * Fired when the user clicks the "Submit Team" or "Update Team" button.
-         * Validates the roster and then shows the "Name Your Team" modal IF NOT editing.
-         */
         function handleSubmitTeamClick() {
             if (Object.keys(appState.draftedPlayers).length !== CONSTANTS.ROSTER_SIZE) {
                 showAlertModal("Roster Incomplete", "You must draft 10 players to submit your team.");
@@ -879,22 +891,15 @@
             }
 
             if (appState.editingTeamId) {
-                // If we are in edit mode, just confirm the update.
                 handleConfirmSubmission();
             } else {
-                // If this is a new team, ask for a name.
                 showPromptModal('Name Your Team', 'Enter a name for this entry:');
             }
         }
 
-        /**
-         * Fired from the prompt modal (for new teams) or directly (for updates).
-         * Handles the final logic of checking limits and saving to Supabase.
-         */
         async function handleConfirmSubmission() {
             let teamName;
             
-            // If we are NOT editing, get the name from the modal.
             if (!appState.editingTeamId) {
                 teamName = uiElements.promptModalInput.value.trim();
                 if (!teamName) {
@@ -908,8 +913,8 @@
             hidePromptModal();
 
             try {
-                // --- If this is a NEW team, check entry count and INSERT ---
                 if (!appState.editingTeamId) {
+                    // This is a NEW team
                     const { count, error: countError } = await supabaseClient
                         .from('user_teams')
                         .select('*', { count: 'exact', head: true })
@@ -921,7 +926,6 @@
                         throw new Error(`You have reached the ${CONSTANTS.MAX_ENTRIES_PER_USER}-team entry limit.`);
                     }
                     
-                    // Create the new team and get its ID
                     const { data: teamData, error: teamError } = await supabaseClient
                         .from('user_teams')
                         .insert({ 
@@ -937,7 +941,6 @@
                 }
 
                 // --- Now we have a team ID (either new or from edit mode) ---
-                // 1. Prepare 'team_players' entries
                 const playersToInsert = Object.keys(appState.roster)
                     .filter(slotKey => appState.roster[slotKey])
                     .map(slotKey => {
@@ -949,7 +952,6 @@
                         };
                     });
                 
-                // 2. Delete all *existing* players for this team (for a clean update)
                 const { error: deleteError } = await supabaseClient
                     .from('team_players')
                     .delete()
@@ -957,23 +959,19 @@
                 
                 if (deleteError) throw deleteError;
 
-                // 3. Insert the new/updated roster
                 const { error: playersError } = await supabaseClient
                     .from('team_players')
                     .insert(playersToInsert);
 
                 if (playersError) throw playersError;
 
-                // 4. Success!
-                // If this was an edit, redirect to My Teams page
+                // Success!
                 if (window.location.search.includes('edit_team_id')) {
                     showAlertModal("Success!", `Your team has been updated.`);
-                    // Use timeout to let user read modal before redirect
                     safeSetTimeout(() => {
                         window.location.href = "my-teams.html";
                     }, 1500);
                 } else {
-                    // If it was a new submission, just reset the board
                     showAlertModal("Success!", `Your team "${teamName}" has been submitted. Good luck!`);
                     resetDraftState(); 
                 }
@@ -981,14 +979,12 @@
             } catch (error) {
                 console.error("Error submitting team:", error.message);
                 showAlertModal("Submit Error", error.message);
+                appState.editingTeamId = null; // Clear editing ID on failure if it was a new team
             } finally {
                 hideLoadingState();
             }
         }
         
-        /**
-         * Resets the draft state to allow for a new team to be drafted.
-         */
         function resetDraftState() {
             appState.currentSalarySpent = 0;
             appState.draftedPlayers = {};
@@ -998,19 +994,17 @@
                 FLEX: null, DST: null, K: null
             };
             appState.teamCounts = {};
-            appState.editingTeamId = null; // Clear edit mode
+            appState.editingTeamId = null; 
             
-            // Reset submit button to "Submit"
              if (uiElements.submitTeamButton) {
                 uiElements.submitTeamButton.textContent = "Submit Team";
                 uiElements.submitTeamButton.setAttribute('aria-label', 'Submit team');
             }
-            // Reset team name message
             if (uiElements.submitTeamMessage) {
                  uiElements.submitTeamMessage.textContent = `Draft 10 players to submit.`;
             }
 
-            triggerUpdateAllUI(); // Update the UI to show the empty board
+            triggerUpdateAllUI(); 
         }
 
 
@@ -1063,7 +1057,6 @@
                      uiElements.tabContents?.forEach(content => {
                         content.classList.toggle('active', content.id === targetId);
                      });
-                     // After switching tabs, scroll to the top of the main content area
                      document.querySelector('main.container')?.scrollIntoView({ behavior: 'smooth' });
                 }
             }
@@ -1514,7 +1507,7 @@
 
             positionOrder.forEach(posKey => {
                 const players = appState.allPlayersByPosition[posKey]; // Use state
-                if (players && players.length > 0) {
+                if (Array.isArray(players) && players.length > 0) {
                     const section = document.createElement('div');
                     section.className = 'mb-8';
                     const sectionHeading = document.createElement('h3');

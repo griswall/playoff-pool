@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Hurd NFL Playoff Pool</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <!-- 1. Import Supabase Library -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --accent: #00d084;
+            --accent-hover: #00b371;
+            --bg-deep: #0f1115;
+            --bg-medium: #1c1e24;
+            --bg-light: #292d36;
+            --text-primary: #e5e7eb;
+            --text-muted: #9ca3af;
+            --error: #ef4444;
+            --yellow: #facc15;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-deep);
+            color: var(--text-primary);
+        }
+        .main-header {
+            background-color: var(--bg-medium);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            border-bottom: 1px solid var(--bg-light);
+        }
+        .content-section {
+            background-color: var(--bg-medium);
+            border: 1px solid var(--bg-light);
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        .form-input {
+            background-color: var(--bg-deep);
+            border: 1px solid var(--bg-light);
+            color: var(--text-primary);
+            border-radius: 0.375rem;
+            width: 70px;
+            padding: 0.5rem 0.75rem;
+            text-align: center;
+        }
+        .form-input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(0, 208, 132, 0.3);
+        }
+        .admin-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+        .admin-table th, .admin-table td {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--bg-light); 
+        }
+        .admin-table th {
+            background-color: var(--bg-light);
+            font-weight: 700;
+            color: var(--text-primary);
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            letter-spacing: 0.05em;
+        }
+        .admin-table tbody tr:hover { background-color: var(--bg-light); }
+        .sticky-header { position: sticky; top: 0; z-index: 10; }
+        
+        .save-button {
+            background-color: var(--accent);
+            color: #000;
+            font-weight: 700;
+            transition: background-color 0.2s;
+            border-radius: 0.5rem;
+            padding: 0.75rem 2rem;
+            font-size: 1.1rem;
+        }
+        .save-button:hover {
+            background-color: var(--accent-hover);
+        }
+        .save-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .loading-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        .loading-overlay.active { display: flex; }
+        .loading-spinner {
+            border: 4px solid var(--bg-light);
+            border-top: 4px solid var(--accent);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <header class="main-header">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-20">
+                <h1 class="text-3xl font-extrabold text-white tracking-tight">Admin Score Panel</h1>
+                <a href="index.html" class="text-sm font-semibold text-[var(--accent)] hover:text-[var(--accent-hover)]">&larr; Back to Main Site</a>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mx-auto p-4 sm:p-6 lg:p-8">
+        <div class="content-section max-w-5xl mx-auto">
+            <h2 class="text-2xl sm:text-3xl font-extrabold text-white mb-6">Enter Player Scores</h2>
+            <div class="overflow-x-auto">
+                <table id="scores-table" class="admin-table min-w-full">
+                    <thead class="sticky-header">
+                        <tr>
+                            <th>Player</th>
+                            <th class="text-center">WC</th>
+                            <th class="text-center">DIV</th>
+                            <th class="text-center">CONF</th>
+                            <th class="text-center">SB</th>
+                        </tr>
+                    </thead>
+                    <tbody id="scores-table-body">
+                        <!-- Player rows will be rendered here by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="mt-6 text-right">
+                <button id="save-scores-btn" class="save-button">Save All Scores</button>
+            </div>
+        </div>
+    </main>
+
+    <div id="loading-overlay" class="loading-overlay" role="status" aria-live="polite">
+        <div class="loading-spinner" aria-label="Loading"></div>
+    </div>
+
+    <script type="module">
+        // =================================================================================
+        // --- SUPABASE & APP INITIALIZATION ---
+        // =================================================================================
+        
+        // **This imports your new supabaseClient.js file**
+        import { getSupabaseClient } from './scripts/supabaseClient.js';
+        
+        let supabaseClient;
+        let allPlayers = []; // To store fetched players
+        let playerScores = {}; // To store fetched scores { "player_id-round": points }
+
+        try {
+            supabaseClient = getSupabaseClient();
+        } catch (e) {
+            console.error("Error initializing Supabase.", e.message);
+            alert("CRITICAL ERROR: Could not connect to Supabase. Check console.");
+        }
+
+        // --- DOM REFERENCES ---
+        const uiElements = {
+            tableBody: document.getElementById('scores-table-body'),
+            saveButton: document.getElementById('save-scores-btn'),
+            loadingOverlay: document.getElementById('loading-overlay')
+        };
+
+        // =================================================================================
+        // --- APP INITIALIZATION ---
+        // =================================================================================
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!supabaseClient) {
+                alert("Supabase client not initialized. Page will not work.");
+                return;
+            }
+            showLoading(true);
+            checkUserAndLoadData();
+            setupEventListeners();
+        });
+
+        function setupEventListeners() {
+            uiElements.saveButton?.addEventListener('click', handleSaveScores);
+        }
+
+        // =================================================================================
+        // --- AUTH & DATA FETCHING ---
+        // =================================================================================
+
+        /**
+         * Checks for an active Supabase session. Redirects to login if not found.
+         * Then, loads all data.
+         */
+        async function checkUserAndLoadData() {
+            const { data, error } = await supabaseClient.auth.getSession();
+            if (error || !data.session) {
+                window.location.href = "login.html"; // Redirect if no session
+                return;
+            }
+            
+            // **SECURITY TODO:** We need to add a check here to ensure *only* your admin email
+            // can see this page. For now, it just checks if a user is logged in.
+
+            await fetchAllData();
+        }
+
+        /**
+         * Fetches all players and all existing scores from the database.
+         */
+        async function fetchAllData() {
+            try {
+                // Fetch players
+                let { data: playersData, error: playersError } = await supabaseClient
+                    .from('players')
+                    .select('*')
+                    .order('name', { ascending: true });
+                
+                if (playersError) throw playersError;
+                allPlayers = playersData;
+
+                // Fetch scores
+                let { data: scoresData, error: scoresError } = await supabaseClient
+                    .from('player_scores')
+                    .select('*');
+
+                if (scoresError) throw scoresError;
+
+                // Map scores for easy lookup
+                playerScores = scoresData.reduce((acc, score) => {
+                    const key = `${score.player_id}-${score.playoff_round}`;
+                    acc[key] = score.points;
+                    return acc;
+                }, {});
+
+                // Now that data is ready, render the table
+                renderScoresTable();
+
+            } catch (error) {
+                console.error("Error fetching data:", error.message);
+                alert("Error: " + error.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // =================================================================================
+        // --- CORE ADMIN LOGIC ---
+        // =================================================================================
+        
+        /**
+         * Gathers all score data from the table and sends it to the Supabase function.
+         */
+        async function handleSaveScores() {
+            showLoading(true);
+            const scoreUpdates = [];
+            const rounds = ['WC', 'DIV', 'CONF', 'SB'];
+            
+            // Find all input fields in the table
+            const allInputs = uiElements.tableBody.querySelectorAll('input[data-player-id]');
+
+            allInputs.forEach(input => {
+                const playerId = input.dataset.playerId;
+                const round = input.dataset.round;
+                // Parse the value as a float, or null if empty
+                const points = input.value === '' ? null : parseFloat(input.value);
+
+                // Only add to the update array if the value is a valid number or null
+                if (points !== null && !isNaN(points)) {
+                    scoreUpdates.push({
+                        player_id_to_update: parseInt(playerId, 10),
+                        round_to_update: round,
+                        points_to_update: points
+                    });
+                } else if (points === null) {
+                     // Handle deletion if needed, or just skip
+                     // For upsert, we might want to send nulls to erase scores
+                     scoreUpdates.push({
+                        player_id_to_update: parseInt(playerId, 10),
+                        round_to_update: round,
+                        points_to_update: null // Explicitly send null
+                    });
+                }
+            });
+
+            if (scoreUpdates.length === 0) {
+                alert("No scores to update.");
+                showLoading(false);
+                return;
+            }
+
+            try {
+                // Call the database function we created
+                const { error } = await supabaseClient.rpc('bulk_upsert_player_scores', {
+                    scores_to_update: scoreUpdates
+                });
+
+                if (error) throw error;
+
+                alert("Scores saved successfully!");
+                // Re-fetch scores to show the saved data
+                await fetchAllData();
+
+            } catch (error) {
+                console.error("Error saving scores:", error.message);
+                alert("Error: " + error.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // =================================================================================
+        // --- UI RENDERING ---
+        // =================================================================================
+        
+        /**
+         * Renders the main scores table.
+         */
+        function renderScoresTable() {
+            if (!uiElements.tableBody) return;
+            uiElements.tableBody.innerHTML = ''; // Clear old data
+            const fragment = document.createDocumentFragment();
+            const rounds = ['WC', 'DIV', 'CONF', 'SB'];
+
+            allPlayers.forEach(player => {
+                const row = fragment.appendChild(document.createElement('tr'));
+                row.innerHTML = `
+                    <td class="whitespace-nowrap">
+                        <div class="font-semibold">${player.name}</div>
+                        <div class="text-xs text-[var(--text-muted)]">${player.position} - ${player.team}</div>
+                    </td>
+                    ${rounds.map(round => `
+                        <td class="text-center">
+                            <input 
+                                type="number" 
+                                step="0.1" 
+                                class="form-input" 
+                                data-player-id="${player.id}" 
+                                data-round="${round}"
+                                value="${playerScores[`${player.id}-${round}`] || ''}"
+                                placeholder="0.0"
+                            >
+                        </td>
+                    `).join('')}
+                `;
+            });
+
+            uiElements.tableBody.appendChild(fragment);
+        }
+
+        function showLoading(isLoading) {
+            uiElements.loadingOverlay?.classList.toggle('active', isLoading);
+        }
+
+    </script>
+</body>
+</html>

@@ -7,7 +7,11 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
     <!-- 1. Import Supabase Library -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+    <!-- Runtime Supabase configuration (replace values or set window.__SUPABASE_CONFIG__) -->
+    <script id="supabase-config" type="application/json">
+        {"url":"YOUR_SUPABASE_URL","anonKey":"YOUR_SUPABASE_ANON_KEY","adminEmails":[]}
+    </script>
     <style>
         :root {
             --accent: #00d084;
@@ -269,7 +273,7 @@
             uiElements.logoutButton?.addEventListener('click', handleLogout);
             
             // Event delegation for team headers and delete buttons
-            uiElements.myTeamsContainer.addEventListener('click', (e) => {
+            uiElements.myTeamsContainer?.addEventListener('click', (e) => {
                 const header = e.target.closest('.team-header');
                 const deleteButton = e.target.closest('.delete-team-btn');
                 const editButton = e.target.closest('.edit-team-btn');
@@ -372,12 +376,18 @@
                         )
                     )
                 `)
+                .order('roster_slot', { ascending: true, foreignTable: 'team_players' })
                 .eq('user_id', currentUser.id)
                 .order('created_at', { ascending: true });
 
             if (error) {
                 console.error("Error fetching teams:", error.message);
-                uiElements.myTeamsContainer.innerHTML = `<p class="text-[var(--error)]">Error loading your teams.</p>`;
+                if (uiElements.myTeamsContainer) {
+                    const errorMessage = document.createElement('p');
+                    errorMessage.className = 'text-[var(--error)]';
+                    errorMessage.textContent = 'Error loading your teams.';
+                    uiElements.myTeamsContainer.replaceChildren(errorMessage);
+                }
                 return;
             }
 
@@ -443,7 +453,8 @@
         // =================================================================================
 
         function renderTeams(teams) {
-            uiElements.myTeamsContainer.innerHTML = '';
+            if (!uiElements.myTeamsContainer) return;
+            uiElements.myTeamsContainer.replaceChildren();
             const fragment = document.createDocumentFragment();
 
             teams.forEach((team, index) => {

@@ -7,7 +7,11 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
     <!-- 1. Import Supabase Library -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+    <!-- Runtime Supabase configuration (replace values or set window.__SUPABASE_CONFIG__) -->
+    <script id="supabase-config" type="application/json">
+        {"url":"YOUR_SUPABASE_URL","anonKey":"YOUR_SUPABASE_ANON_KEY","adminEmails":["admin@example.com"]}
+    </script>
     <style>
         :root {
             --accent: #00d084;
@@ -158,14 +162,21 @@
         // =================================================================================
         
         // **This imports your new supabaseClient.js file**
-        import { getSupabaseClient } from './scripts/supabaseClient.js';
-        
+        import { getSupabaseClient, getSupabaseConfig } from './scripts/supabaseClient.js';
+
         let supabaseClient;
         let allPlayers = []; // To store fetched players
         let playerScores = {}; // To store fetched scores { "player_id-round": points }
-        let adminEmail = "dkusco@gmail.com"; // ** SET YOUR ADMIN EMAIL HERE **
+        const dirtyScoreInputs = new Map();
+        let adminAllowList = [];
 
         try {
+            const config = getSupabaseConfig();
+            adminAllowList = Array.isArray(config.adminEmails)
+                ? config.adminEmails
+                    .map(email => (typeof email === 'string' ? email.trim().toLowerCase() : ''))
+                    .filter(Boolean)
+                : [];
             supabaseClient = getSupabaseClient();
         } catch (e) {
             console.error("Error initializing Supabase.", e.message);
@@ -185,7 +196,7 @@
         
         document.addEventListener('DOMContentLoaded', () => {
             if (!supabaseClient) {
-                alert("Supabase client not initialized. Page will not work.");
+                showLoading(false);
                 return;
             }
             showLoading(true);
@@ -211,13 +222,17 @@
                 window.location.href = "login.html"; // Redirect if no session
                 return;
             }
-            
-            // ** SECURITY CHECK **
-            // if (data.session.user.email !== adminEmail) {
-            //     alert("Access Denied: This page is for administrators only.");
-            //     window.location.href = "index.html";
-            //     return;
-            // }
+
+            if (adminAllowList.length > 0) {
+                const userEmail = (data.session.user?.email || '').toLowerCase();
+                const isAllowed = adminAllowList.includes(userEmail);
+                if (!isAllowed) {
+                    alert("Access Denied: This page is for administrators only.");
+                    await supabaseClient.auth.signOut();
+                    window.location.href = "index.html";
+                    return;
+                }
+            }
 
             await fetchAllData();
         }
@@ -227,30 +242,25 @@
          */
         async function fetchAllData() {
             try {
-                // Fetch players
-                let { data: playersData, error: playersError } = await supabaseClient
-                    .from('players')
-                    .select('*')
-                    .order('name', { ascending: true });
-                
+                const [
+                    { data: playersData, error: playersError },
+                    { data: scoresData, error: scoresError }
+                ] = await Promise.all([
+                    supabaseClient
+                        .from('players')
+                        .select('id, name, team, position')
+                        .order('name', { ascending: true }),
+                    supabaseClient
+                        .from('player_scores')
+                        .select('player_id, playoff_round, points')
+                ]);
+
                 if (playersError) throw playersError;
-                allPlayers = playersData;
-
-                // Fetch scores
-                let { data: scoresData, error: scoresError } = await supabaseClient
-                    .from('player_scores')
-                    .select('*');
-
                 if (scoresError) throw scoresError;
 
-                // Map scores for easy lookup
-                playerScores = scoresData.reduce((acc, score) => {
-                    const key = `${score.player_id}-${score.playoff_round}`;
-                    acc[key] = score.points;
-                    return acc;
-                }, {});
+                allPlayers = Array.isArray(playersData) ? playersData : [];
+                playerScores = mapScoresByPlayerAndRound(scoresData || []);
 
-                // Now that data is ready, render the table
                 renderScoresTable();
 
             } catch (error) {
@@ -261,6 +271,120 @@
             }
         }
 
+        async function refreshScores(playerIds = []) {
+            const uniqueIds = Array.from(
+                new Set(
+                    (Array.isArray(playerIds) ? playerIds : [])
+                        .map(id => (typeof id === 'number' ? id : Number.parseInt(id, 10)))
+                        .filter(id => Number.isInteger(id) && id > 0)
+                )
+            );
+
+            if (uniqueIds.length === 0) {
+                return;
+            }
+
+            try {
+                const { data: scoresData, error } = await supabaseClient
+                    .from('player_scores')
+                    .select('player_id, playoff_round, points')
+                    .in('player_id', uniqueIds);
+
+                if (error) throw error;
+
+                const updatedScores = { ...playerScores };
+                const validRounds = ['WC', 'DIV', 'CONF', 'SB'];
+
+                uniqueIds.forEach(playerId => {
+                    validRounds.forEach(round => {
+                        delete updatedScores[`${playerId}-${round}`];
+                    });
+                });
+
+                (scoresData || []).forEach(score => {
+                    if (!score || !validRounds.includes(score.playoff_round)) return;
+                    const normalizedId = Number.parseInt(score.player_id, 10);
+                    if (!Number.isInteger(normalizedId)) return;
+                    updatedScores[`${normalizedId}-${score.playoff_round}`] = score.points;
+                });
+
+                playerScores = updatedScores;
+            } catch (error) {
+                console.error("Error refreshing scores:", error.message);
+                alert("Scores saved but could not refresh latest values. " + error.message);
+            }
+        }
+
+        function mapScoresByPlayerAndRound(scores = []) {
+            return scores.reduce((acc, score) => {
+                if (typeof score?.player_id === 'undefined' || !score?.playoff_round) return acc;
+                const key = `${score.player_id}-${score.playoff_round}`;
+                acc[key] = score.points;
+                return acc;
+            }, {});
+        }
+
+        function handleScoreInputChange(event) {
+            const input = event.currentTarget;
+            if (!(input instanceof HTMLInputElement)) {
+                return;
+            }
+
+            const playerId = Number.parseInt(input.dataset.playerId || '', 10);
+            const round = input.dataset.round || '';
+            if (!Number.isInteger(playerId) || !round) {
+                return;
+            }
+
+            const key = `${playerId}-${round}`;
+            const rawValue = input.value.trim();
+            let normalizedValue = null;
+            let isValid = true;
+
+            if (rawValue === '') {
+                normalizedValue = null;
+            } else {
+                const numericValue = Number(rawValue);
+                if (!Number.isFinite(numericValue)) {
+                    isValid = false;
+                } else {
+                    normalizedValue = numericValue;
+                }
+            }
+
+            if (!isValid) {
+                input.classList.add('border-red-500');
+                dirtyScoreInputs.set(key, {
+                    playerId,
+                    round,
+                    rawValue,
+                    value: Number.NaN,
+                    input
+                });
+                return;
+            }
+
+            input.classList.remove('border-red-500');
+
+            const existingScore = Object.prototype.hasOwnProperty.call(playerScores, key)
+                ? playerScores[key]
+                : undefined;
+            const normalizedExisting = existingScore === undefined ? null : existingScore;
+
+            if (normalizedExisting === normalizedValue) {
+                dirtyScoreInputs.delete(key);
+                return;
+            }
+
+            dirtyScoreInputs.set(key, {
+                playerId,
+                round,
+                rawValue,
+                value: normalizedValue,
+                input
+            });
+        }
+
         // =================================================================================
         // --- CORE ADMIN LOGIC ---
         // =================================================================================
@@ -269,39 +393,71 @@
          * Gathers all score data from the table and sends it to the Supabase function.
          */
         async function handleSaveScores() {
+            if (dirtyScoreInputs.size === 0) {
+                alert("No score changes detected.");
+                return;
+            }
+
+            setSaveButtonState(true);
             showLoading(true);
             const scoreUpdates = [];
-            
-            // Find all input fields in the table
-            const allInputs = uiElements.tableBody.querySelectorAll('input[data-player-id]');
+            const updatedPlayerIds = new Set();
+            const invalidEntries = [];
 
-            allInputs.forEach(input => {
-                const playerId = input.dataset.playerId;
-                const round = input.dataset.round;
-                // Parse the value as a float, or null if empty
-                const points = input.value.trim() === '' ? null : parseFloat(input.value);
-
-                // Only add to the update array if the value is a valid number or null
-                if (points === null || !isNaN(points)) {
-                    scoreUpdates.push({
-                        player_id_to_update: parseInt(playerId, 10),
-                        round_to_update: round,
-                        points_to_update: points
-                    });
-                } else {
-                    // If input is invalid (e.g., "abc"), skip it but warn user
-                    console.warn(`Invalid input skipped for ${playerId} [${round}]: ${input.value}`);
+            dirtyScoreInputs.forEach(entry => {
+                if (!entry) return;
+                const { playerId, round, value, input } = entry;
+                if (!Number.isInteger(playerId) || !round) {
+                    return;
                 }
+
+                const key = `${playerId}-${round}`;
+                const existingScore = Object.prototype.hasOwnProperty.call(playerScores, key)
+                    ? playerScores[key]
+                    : undefined;
+                const normalizedExisting = existingScore === undefined ? null : existingScore;
+
+                if (value !== null && !Number.isFinite(value)) {
+                    invalidEntries.push(entry);
+                    if (input) {
+                        input.classList.add('border-red-500');
+                    }
+                    return;
+                }
+
+                const normalizedPoints = value === null ? null : Number(value);
+                if (normalizedExisting === normalizedPoints) {
+                    dirtyScoreInputs.delete(key);
+                    return;
+                }
+
+                scoreUpdates.push({
+                    player_id_to_update: playerId,
+                    round_to_update: round,
+                    points_to_update: normalizedPoints
+                });
+                updatedPlayerIds.add(playerId);
             });
 
-            if (scoreUpdates.length === 0) {
-                alert("No valid scores to update.");
+            if (invalidEntries.length > 0) {
                 showLoading(false);
+                setSaveButtonState(false);
+                const firstInvalid = invalidEntries[0];
+                if (firstInvalid?.input) {
+                    firstInvalid.input.focus();
+                }
+                alert("Please enter valid numeric scores before saving.");
+                return;
+            }
+
+            if (scoreUpdates.length === 0) {
+                alert("No score changes detected.");
+                showLoading(false);
+                setSaveButtonState(false);
                 return;
             }
 
             try {
-                // Call the database function we created
                 const { error } = await supabaseClient.rpc('bulk_upsert_player_scores', {
                     scores_to_update: scoreUpdates
                 });
@@ -309,14 +465,20 @@
                 if (error) throw error;
 
                 alert("Scores saved successfully!");
-                // Re-fetch scores to show the saved data
-                await fetchAllData();
+                scoreUpdates.forEach(update => {
+                    const key = `${update.player_id_to_update}-${update.round_to_update}`;
+                    playerScores[key] = update.points_to_update;
+                });
+                dirtyScoreInputs.clear();
+                await refreshScores(Array.from(updatedPlayerIds));
+                syncInputsWithScores();
 
             } catch (error) {
                 console.error("Error saving scores:", error.message);
                 alert("Error: " + error.message);
             } finally {
                 showLoading(false);
+                setSaveButtonState(false);
             }
         }
 
@@ -329,39 +491,91 @@
          */
         function renderScoresTable() {
             if (!uiElements.tableBody) return;
-            uiElements.tableBody.innerHTML = ''; // Clear old data
+            uiElements.tableBody.replaceChildren();
+            dirtyScoreInputs.clear();
             const fragment = document.createDocumentFragment();
             const rounds = ['WC', 'DIV', 'CONF', 'SB'];
 
             allPlayers.forEach(player => {
-                const row = fragment.appendChild(document.createElement('tr'));
-                row.innerHTML = `
-                    <td class="whitespace-nowrap">
-                        <div class="font-semibold">${player.name}</div>
-                        <div class="text-xs text-[var(--text-muted)]">${player.position} - ${player.team}</div>
-                    </td>
-                    ${rounds.map(round => `
-                        <td class="text-center">
-                            <input 
-                                type="text" 
-                                inputmode="decimal"
-                                pattern="[0-9.-]*"
-                                class="form-input" 
-                                data-player-id="${player.id}" 
-                                data-round="${round}"
-                                value="${playerScores[`${player.id}-${round}`] ?? ''}"
-                                placeholder="0.0"
-                            >
-                        </td>
-                    `).join('')}
-                `;
+                const row = document.createElement('tr');
+
+                const playerCell = document.createElement('td');
+                playerCell.className = 'whitespace-nowrap';
+
+                const playerName = document.createElement('div');
+                playerName.className = 'font-semibold';
+                playerName.textContent = player?.name || 'Unknown Player';
+
+                const playerMeta = document.createElement('div');
+                playerMeta.className = 'text-xs text-[var(--text-muted)]';
+                const position = player?.position || 'N/A';
+                const team = player?.team || 'N/A';
+                playerMeta.textContent = `${position} - ${team}`;
+
+                playerCell.appendChild(playerName);
+                playerCell.appendChild(playerMeta);
+                row.appendChild(playerCell);
+
+                rounds.forEach(round => {
+                    const cell = document.createElement('td');
+                    cell.className = 'text-center';
+
+                    const input = document.createElement('input');
+                    input.type = 'text';
+                    input.inputMode = 'decimal';
+                    input.pattern = '[0-9.-]*';
+                    input.className = 'form-input';
+                    const playerIdValue = typeof player?.id !== 'undefined' ? String(player.id) : '';
+                    if (playerIdValue) {
+                        input.dataset.playerId = playerIdValue;
+                        const scoreKey = `${playerIdValue}-${round}`;
+                        const existingScore = playerScores[scoreKey];
+                        if (existingScore !== undefined && existingScore !== null) {
+                            input.value = String(existingScore);
+                        }
+                    }
+                    input.dataset.round = round;
+                    input.placeholder = '0.0';
+                    input.addEventListener('input', handleScoreInputChange);
+
+                    cell.appendChild(input);
+                    row.appendChild(cell);
+                });
+
+                fragment.appendChild(row);
             });
 
             uiElements.tableBody.appendChild(fragment);
         }
 
+        function syncInputsWithScores() {
+            if (!uiElements.tableBody) return;
+            dirtyScoreInputs.clear();
+            const inputs = uiElements.tableBody.querySelectorAll('input[data-player-id][data-round]');
+            inputs.forEach(input => {
+                const playerId = input.dataset.playerId;
+                const round = input.dataset.round;
+                if (!playerId || !round) return;
+
+                const key = `${playerId}-${round}`;
+                const value = playerScores[key];
+                if (value === null || typeof value === 'undefined') {
+                    input.value = '';
+                } else {
+                    input.value = String(value);
+                }
+                input.classList.remove('border-red-500');
+            });
+        }
+
         function showLoading(isLoading) {
             uiElements.loadingOverlay?.classList.toggle('active', isLoading);
+        }
+
+        function setSaveButtonState(isBusy) {
+            if (!uiElements.saveButton) return;
+            uiElements.saveButton.disabled = isBusy;
+            uiElements.saveButton.setAttribute('aria-busy', String(isBusy));
         }
 
     </script>

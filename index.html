@@ -7,7 +7,11 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
     <!-- 1. Import Supabase Library -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+    <!-- Runtime Supabase configuration (replace values or set window.__SUPABASE_CONFIG__) -->
+    <script id="supabase-config" type="application/json">
+        {"url":"YOUR_SUPABASE_URL","anonKey":"YOUR_SUPABASE_ANON_KEY","adminEmails":[]}
+    </script>
     <style>
         :root {
             --accent: #00d084;
@@ -298,23 +302,21 @@
 
         /* Image Fallback Styles */
         .player-fallback-initial {
-            display: none;             /* ** Corrected: Initially hidden ** */
+            display: none;             /* Initially hidden */
             width: 40px;
             height: 40px;
             border-radius: 50%;
             margin-right: 0.5rem;
             border: 2px solid var(--accent);
             background-color: var(--bg-light);
-            display: flex;
             align-items: center;
             justify-content: center;
             font-size: 0.75rem;
             font-weight: bold;
             color: var(--text-muted);
-            display: none; /* ** Explicitly set to none ** */
         }
         .player-fallback-initial.is-visible {
-            display: flex;             /* ** only shown when JS adds this class ** */
+            display: flex;             /* Only shown when JS adds this class */
         }
 
         .roster-slot { 
@@ -520,20 +522,31 @@
             currentUser: null,
             currentSession: null,
             currentSalarySpent: 0,
-            draftedPlayers: {}, 
+            draftedPlayers: {},
             roster: {
-                QB: null, RB1: null, RB2: null, RB3: null, 
+                QB: null, RB1: null, RB2: null, RB3: null,
                 WR1: null, WR2: null, WR3: null,
                 FLEX: null, DST: null, K: null
             },
-            teamCounts: {}, 
-            playersById: {}, 
+            teamCounts: {},
+            playersById: {},
             allPlayersByPosition: {},
+            playersByTeam: {},
+            playerIdsByPosition: {},
+            playersSortedBySalaryAsc: [],
+            playerCardElements: new Map(),
+            pendingAvailabilityUpdates: new Set(),
+            lastKnownRemainingSalary: CONSTANTS.INITIAL_SALARY_CAP,
             editingTeamId: null // ** NEW: Track if we are in "edit mode" **
         };
 
         const timeouts = new Set();
-        let updateUITimeout = null;
+        let updateUIFrameId = null;
+        let updateUIScheduledWithTimeout = false;
+
+        const STANDINGS_CACHE_TTL_MS = 30000;
+        let standingsCache = { data: null, fetchedAt: 0 };
+        let standingsFetchPromise = null;
 
         // =================================================================================
         // --- UTILITY FUNCTIONS ---
@@ -554,9 +567,22 @@
         function clearAllTimeouts() {
             timeouts.forEach(id => clearTimeout(id));
             timeouts.clear();
-            if (updateUITimeout) clearTimeout(updateUITimeout);
+            if (updateUIFrameId !== null) {
+                if (updateUIScheduledWithTimeout) {
+                    clearTimeout(updateUIFrameId);
+                    timeouts.delete(updateUIFrameId);
+                } else if (typeof window.cancelAnimationFrame === 'function') {
+                    window.cancelAnimationFrame(updateUIFrameId);
+                }
+                updateUIFrameId = null;
+                updateUIScheduledWithTimeout = false;
+            }
         }
         window.addEventListener('beforeunload', clearAllTimeouts);
+
+        function invalidateStandingsCache() {
+            standingsCache = { data: null, fetchedAt: 0 };
+        }
 
         function measurePerformance(label, fn) {
             const start = performance.now();
@@ -581,17 +607,106 @@
             return `$${millions.toFixed(1)}M`;
         }
 
+        function queueAvailabilityUpdate(playerId) {
+            if (playerId === null || typeof playerId === 'undefined') return;
+            const key = String(playerId);
+            if (!key) return;
+            if (appState.playerCardElements.has(key)) {
+                appState.pendingAvailabilityUpdates.add(key);
+            }
+        }
+
+        function queueAvailabilityUpdates(playerIds = []) {
+            (Array.isArray(playerIds) ? playerIds : []).forEach(queueAvailabilityUpdate);
+        }
+
+        function queueAvailabilityUpdatesForTeam(teamCode) {
+            if (!teamCode) return;
+            const ids = appState.playersByTeam?.[teamCode] || [];
+            queueAvailabilityUpdates(ids);
+        }
+
+        function queueAvailabilityUpdatesForPositions(positions = []) {
+            (Array.isArray(positions) ? positions : []).forEach(position => {
+                const ids = appState.playerIdsByPosition?.[position] || [];
+                queueAvailabilityUpdates(ids);
+            });
+        }
+
+        function queueFlexEligiblePlayers() {
+            queueAvailabilityUpdatesForPositions(['RB', 'WR', 'TE']);
+        }
+
+        function queueAllPlayersForAvailability() {
+            appState.playerCardElements.forEach((_, playerId) => {
+                appState.pendingAvailabilityUpdates.add(playerId);
+            });
+        }
+
+        function findFirstSalaryAbove(value) {
+            const list = appState.playersSortedBySalaryAsc || [];
+            let left = 0;
+            let right = list.length;
+            while (left < right) {
+                const mid = (left + right) >>> 1;
+                const salary = Number(list[mid]?.salary) || 0;
+                if (salary > value) {
+                    right = mid;
+                } else {
+                    left = mid + 1;
+                }
+            }
+            return left;
+        }
+
+        function queueAvailabilityAfterSalaryChange(previousRemaining, nextRemaining) {
+            if (!Array.isArray(appState.playersSortedBySalaryAsc) || appState.playersSortedBySalaryAsc.length === 0) {
+                return;
+            }
+            if (previousRemaining === nextRemaining) {
+                return;
+            }
+
+            const minBound = Math.min(previousRemaining, nextRemaining);
+            const maxBound = Math.max(previousRemaining, nextRemaining);
+            const startIndex = findFirstSalaryAbove(minBound);
+            const list = appState.playersSortedBySalaryAsc;
+
+            for (let index = startIndex; index < list.length; index += 1) {
+                const entry = list[index];
+                const salary = Number(entry?.salary) || 0;
+                if (salary > maxBound) break;
+                queueAvailabilityUpdate(entry?.id);
+            }
+        }
+
         function triggerUpdateAllUI() {
-            if (updateUITimeout) clearTimeout(updateUITimeout);
-            updateUITimeout = safeSetTimeout(() => {
+            if (updateUIFrameId !== null) {
+                return;
+            }
+
+            const runUpdate = () => {
+                const affectedIds = appState.pendingAvailabilityUpdates.size > 0
+                    ? Array.from(appState.pendingAvailabilityUpdates)
+                    : null;
+                appState.pendingAvailabilityUpdates.clear();
+                updateUIFrameId = null;
+                updateUIScheduledWithTimeout = false;
                 measurePerformance('updateAllUI', () => {
                     updateSalaryUI();
                     updateRosterCount();
-                    renderRosterSlots(); 
-                    updatePlayerAvailabilityInPool(); 
-                    checkRosterFull(); 
+                    renderRosterSlots();
+                    updatePlayerAvailabilityInPool(affectedIds);
+                    checkRosterFull();
                 });
-            }, CONSTANTS.DEBOUNCE_DELAY);
+            };
+
+            if (typeof window.requestAnimationFrame === 'function') {
+                updateUIFrameId = window.requestAnimationFrame(runUpdate);
+            } else {
+                updateUIScheduledWithTimeout = true;
+                updateUIFrameId = safeSetTimeout(runUpdate, CONSTANTS.DEBOUNCE_DELAY);
+            }
         }
 
         function showLoadingState(show = true) {
@@ -773,11 +888,14 @@
             try {
                 // Fetch players and scores in parallel
                 const [playerPromise, scoresPromise] = [
-                    supabaseClient.from('players').select('*'),
+                    supabaseClient.from('players').select('id, name, team, position, salary'),
                     supabaseClient.from('player_scores').select('player_id, playoff_round, points')
                 ];
 
-                const [{ data: players, error: playersError }, { data: scoresData, error: scoresError }] = await Promise.all([playerPromise, scoresPromise]);
+                const [
+                    { data: players, error: playersError },
+                    { data: scoresData, error: scoresError }
+                ] = await Promise.all([playerPromise, scoresPromise]);
 
                 if (playersError) throw playersError;
                 if (scoresError) {
@@ -785,16 +903,26 @@
                     // Non-critical, proceed with empty scores
                 }
 
+                const sanitizedPlayers = Array.isArray(players) ? players : [];
                 // Create a fast lookup map for the scores
-                const scoresMap = (scoresData || []).reduce((acc, score) => {
+                const scoresMap = (Array.isArray(scoresData) ? scoresData : []).reduce((acc, score) => {
+                    if (!score || typeof score.player_id === 'undefined' || !score.playoff_round) {
+                        return acc;
+                    }
                     const key = `${score.player_id}-${score.playoff_round}`;
                     acc[key] = score.points;
                     return acc;
                 }, {});
 
                 appState.allPlayersByPosition = { QB: [], RB: [], WR: [], TE: [], DST: [], K: [] };
+                appState.playerIdsByPosition = { QB: [], RB: [], WR: [], TE: [], DST: [], K: [] };
+                appState.playersByTeam = {};
+                appState.playersById = {};
+                appState.playersSortedBySalaryAsc = [];
+                appState.playerCardElements.clear();
+                appState.pendingAvailabilityUpdates.clear();
 
-                players.forEach(p => {
+                sanitizedPlayers.forEach(p => {
                     // Calculate scores and totals as we process players
                     const playoffScores = [
                         scoresMap[`${p.id}-WC`] || 0,
@@ -816,15 +944,35 @@
 
                     if (appState.allPlayersByPosition[player.position]) {
                         appState.allPlayersByPosition[player.position].push(player);
+                        appState.playerIdsByPosition[player.position].push(player.id);
                         appState.playersById[player.id] = player;
                     }
+
+                    if (!appState.playersByTeam[player.team]) {
+                        appState.playersByTeam[player.team] = [];
+                    }
+                    appState.playersByTeam[player.team].push(player.id);
+
+                    appState.playersSortedBySalaryAsc.push({
+                        id: player.id,
+                        salary: Number(player.salary) || 0
+                    });
                 });
 
+                appState.playersSortedBySalaryAsc.sort((a, b) => {
+                    const salaryA = Number(a?.salary) || 0;
+                    const salaryB = Number(b?.salary) || 0;
+                    return salaryA - salaryB;
+                });
+
+                appState.lastKnownRemainingSalary = CONSTANTS.INITIAL_SALARY_CAP - appState.currentSalarySpent;
+
                 initializeUI(); // Render everything now that we have data
-            
+
             } catch (error) {
-                 console.error("Error fetching data:", error.message);
+                console.error("Error fetching data:", error.message);
                 showAlertModal("Data Error", "Could not load data from the database. Please try refreshing.");
+                hideLoadingState();
             } finally {
                 // Will be hidden by loadTeamForEditing or checkUser
             }
@@ -845,7 +993,8 @@
                         )
                     `)
                     .eq('id', teamId)
-                    .eq('user_id', appState.currentUser.id) 
+                    .eq('user_id', appState.currentUser.id)
+                    .order('roster_slot', { ascending: true, foreignTable: 'team_players' })
                     .single();
 
                 if (error) throw error;
@@ -868,6 +1017,10 @@
                     }
                 });
 
+                appState.pendingAvailabilityUpdates.clear();
+                queueAllPlayersForAvailability();
+                appState.lastKnownRemainingSalary = CONSTANTS.INITIAL_SALARY_CAP - appState.currentSalarySpent;
+
                 if (uiElements.submitTeamButton) {
                     uiElements.submitTeamButton.textContent = "Update Team";
                     uiElements.submitTeamButton.setAttribute('aria-label', 'Update your team');
@@ -876,7 +1029,7 @@
                     uiElements.submitTeamMessage.textContent = `You are editing "${teamData.team_name}".`;
                 }
                 
-                triggerUpdateAllUI(); 
+                triggerUpdateAllUI();
 
             } catch (error) {
                 console.error("Error loading team for editing:", error.message);
@@ -982,6 +1135,7 @@
                 if (playersError) throw playersError;
 
                 // Success!
+                invalidateStandingsCache();
                 if (window.location.search.includes('edit_team_id')) {
                     showAlertModal("Success!", `Your team has been updated.`);
                     safeSetTimeout(() => {
@@ -1021,13 +1175,16 @@
             if (uiElements.submitTeamMessage) {
                  uiElements.submitTeamMessage.textContent = `Draft 10 players to submit.`;
             }
-            
+
             // Clear URL params if we were editing
             if (window.location.search.includes('edit_team_id')) {
                 window.history.pushState({}, '', window.location.pathname);
             }
 
-            triggerUpdateAllUI(); 
+            appState.lastKnownRemainingSalary = CONSTANTS.INITIAL_SALARY_CAP;
+            appState.pendingAvailabilityUpdates.clear();
+            queueAllPlayersForAvailability();
+            triggerUpdateAllUI();
         }
 
 
@@ -1115,6 +1272,7 @@
                 return;
             }
 
+            const previousRemaining = CONSTANTS.INITIAL_SALARY_CAP - appState.currentSalarySpent;
             const assignedSlotKey = findAvailableSlot(player.position);
             if (!assignedSlotKey) {
                 showAlertModal('Position Full', `No available ${player.position} or FLEX spots for ${player.name}.`);
@@ -1129,11 +1287,19 @@
             } catch (error) {
                  console.error("Error updating app state during draft:", error);
                  showAlertModal("Draft Error", "An internal error occurred while drafting. Please try again.");
-                 return;
+                return;
             }
 
             cardElement.classList.add('draft-flash');
             safeSetTimeout(() => cardElement.classList.remove('draft-flash'), CONSTANTS.ANIMATION_DURATION);
+            queueAvailabilityUpdate(player.id);
+            queueAvailabilityUpdatesForTeam(player.team);
+            queueAvailabilityUpdatesForPositions([player.position]);
+            if (['RB', 'WR', 'TE'].includes(player.position)) {
+                queueFlexEligiblePlayers();
+            }
+            const newRemaining = CONSTANTS.INITIAL_SALARY_CAP - appState.currentSalarySpent;
+            queueAvailabilityAfterSalaryChange(previousRemaining, newRemaining);
             triggerUpdateAllUI();
         }
 
@@ -1156,7 +1322,8 @@
                 return;
             }
 
-             try {
+            const previousRemaining = CONSTANTS.INITIAL_SALARY_CAP - appState.currentSalarySpent;
+            try {
                 appState.currentSalarySpent -= player.salary || 0;
                 if (appState.teamCounts[player.team]) {
                      appState.teamCounts[player.team]--;
@@ -1171,6 +1338,14 @@
                 showAlertModal("Remove Error", "An internal error occurred while removing the player.");
                 return;
             }
+            queueAvailabilityUpdate(player.id);
+            queueAvailabilityUpdatesForTeam(player.team);
+            queueAvailabilityUpdatesForPositions([player.position]);
+            if (['RB', 'WR', 'TE'].includes(player.position)) {
+                 queueFlexEligiblePlayers();
+            }
+            const newRemaining = CONSTANTS.INITIAL_SALARY_CAP - appState.currentSalarySpent;
+            queueAvailabilityAfterSalaryChange(previousRemaining, newRemaining);
             triggerUpdateAllUI();
         }
 
@@ -1180,7 +1355,9 @@
 
         function renderPlayerPool() {
             if (!uiElements.playerPoolContainer) return;
-            uiElements.playerPoolContainer.innerHTML = '';
+            uiElements.playerPoolContainer.replaceChildren();
+            appState.playerCardElements.clear();
+            appState.pendingAvailabilityUpdates.clear();
             const fragment = document.createDocumentFragment();
             const positionOrder = ["QB", "RB", "WR", "TE", "DST", "K"];
 
@@ -1205,10 +1382,31 @@
                         else if (config.count === 1) selectCountText = "- Select 1";
                         else if (config.count > 1) selectCountText = `- Select ${config.count}`;
                     }
-                    header.innerHTML = `
-                        <span>${posKey} <span class="text-sm font-normal text-gray-400">${selectCountText}</span></span>
-                        <svg class="collapse-icon w-6 h-6 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                    `;
+                    const headerTextContainer = document.createElement('span');
+                    headerTextContainer.textContent = posKey;
+                    if (selectCountText) {
+                        headerTextContainer.appendChild(document.createTextNode(' '));
+                        const selectInfo = document.createElement('span');
+                        selectInfo.className = 'text-sm font-normal text-gray-400';
+                        selectInfo.textContent = selectCountText;
+                        headerTextContainer.appendChild(selectInfo);
+                    }
+
+                    const collapseIcon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                    collapseIcon.setAttribute('class', 'collapse-icon w-6 h-6 text-gray-400 pointer-events-none');
+                    collapseIcon.setAttribute('fill', 'none');
+                    collapseIcon.setAttribute('stroke', 'currentColor');
+                    collapseIcon.setAttribute('viewBox', '0 0 24 24');
+                    collapseIcon.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+                    const collapsePath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    collapsePath.setAttribute('stroke-linecap', 'round');
+                    collapsePath.setAttribute('stroke-linejoin', 'round');
+                    collapsePath.setAttribute('stroke-width', '2');
+                    collapsePath.setAttribute('d', 'M19 9l-7 7-7-7');
+                    collapseIcon.appendChild(collapsePath);
+
+                    header.appendChild(headerTextContainer);
+                    header.appendChild(collapseIcon);
                     section.appendChild(header);
 
                     const grid = document.createElement('div');
@@ -1224,14 +1422,18 @@
                             }
                         });
                     } catch (error) {
-                         console.error(`Error rendering player grid for position ${posKey}:`, error);
-                         grid.innerHTML = `<p class="text-red-500 col-span-full">Error loading ${posKey} players.</p>`;
+                        console.error(`Error rendering player grid for position ${posKey}:`, error);
+                        const errorMessage = document.createElement('p');
+                        errorMessage.className = 'text-red-500 col-span-full';
+                        errorMessage.textContent = `Error loading ${posKey} players.`;
+                        grid.replaceChildren(errorMessage);
                     }
                     section.appendChild(grid);
                     fragment.appendChild(section);
                 }
             });
             uiElements.playerPoolContainer.appendChild(fragment);
+            queueAllPlayersForAvailability();
         }
 
         function createPlayerCard(player) {
@@ -1246,6 +1448,7 @@
             card.setAttribute('tabindex', '0');
             card.setAttribute('role', 'button');
             card.setAttribute('aria-label', `Draft ${player.name}`);
+            appState.playerCardElements.set(String(player.id), card);
 
             const fallbackInitial = document.createElement('div');
             fallbackInitial.className = 'player-fallback-initial';
@@ -1307,27 +1510,31 @@
             return card;
         }
 
-        function updatePlayerAvailabilityInPool() {
+        function updatePlayerAvailabilityInPool(affectedPlayerIds = null) {
             const remainingSal = CONSTANTS.INITIAL_SALARY_CAP - appState.currentSalarySpent;
-            const allCards = uiElements.playerPoolContainer?.querySelectorAll('.player-card');
-            if (!allCards) return;
+            const idsToProcess = Array.isArray(affectedPlayerIds) && affectedPlayerIds.length > 0
+                ? affectedPlayerIds
+                : Array.from(appState.playerCardElements.keys());
 
-            allCards.forEach(card => {
-                const playerId = card.dataset.playerId;
-                const player = appState.playersById?.[playerId];
+            idsToProcess.forEach(playerIdValue => {
+                const playerKey = String(playerIdValue);
+                const card = appState.playerCardElements.get(playerKey);
+                if (!card) return;
+
+                const player = appState.playersById?.[playerKey];
                 if (!player) {
-                     card.classList.add('player-unavailable');
-                     card.title = "Player data error";
-                     card.setAttribute('aria-disabled', 'true');
-                     card.setAttribute('aria-label', "Player data error");
-                     return;
+                    card.classList.add('player-unavailable');
+                    card.title = "Player data error";
+                    card.setAttribute('aria-disabled', 'true');
+                    card.setAttribute('aria-label', "Player data error");
+                    return;
                 }
 
                 card.classList.remove('player-drafted', 'player-unavailable');
                 let titleText = `Draft ${player.name}`;
                 let isDisabled = false;
 
-                if (appState.draftedPlayers[playerId]) {
+                if (appState.draftedPlayers[player.id]) {
                     card.classList.add('player-drafted');
                     titleText = "Drafted";
                     isDisabled = true;
@@ -1349,6 +1556,8 @@
                 card.setAttribute('aria-label', titleText);
                 card.setAttribute('aria-disabled', isDisabled.toString());
             });
+
+            appState.lastKnownRemainingSalary = remainingSal;
         }
 
         function isSlotAvailable(position) {
@@ -1368,7 +1577,7 @@
 
         function renderRosterSlots() {
             if (!uiElements.rosterSlotsContainer) return;
-            uiElements.rosterSlotsContainer.innerHTML = '';
+            uiElements.rosterSlotsContainer.replaceChildren();
             const fragment = document.createDocumentFragment();
             const slotOrder = ["QB", "RB1", "RB2", "RB3", "WR1", "WR2", "WR3", "FLEX", "DST", "K"];
 
@@ -1510,20 +1719,31 @@
 
         function renderSubHeader() {
             if (!uiElements.subHeader) return;
-            const positionOrder = Object.keys(appState.allPlayersByPosition); // Use state
+            const positionOrder = Object.keys(appState.allPlayersByPosition);
+
             try {
-                uiElements.subHeader.innerHTML = `
-                    <div class="container mx-auto px-4 sm:px-6 lg:px-8">
-                        <div class="flex justify-center space-x-4 py-3 overflow-x-auto">
-                            ${positionOrder.map(posKey => `
-                                <a href="#section-${posKey}" class="text-sm font-semibold text-gray-400 hover:text-white transition-colors flex-shrink-0">${posKey}</a>
-                            `).join('')}
-                        </div>
-                    </div>
-                `;
+                const container = document.createElement('div');
+                container.className = 'container mx-auto px-4 sm:px-6 lg:px-8';
+
+                const nav = document.createElement('div');
+                nav.className = 'flex justify-center space-x-4 py-3 overflow-x-auto';
+
+                positionOrder.forEach(posKey => {
+                    const link = document.createElement('a');
+                    link.href = `#section-${posKey}`;
+                    link.className = 'text-sm font-semibold text-gray-400 hover:text-white transition-colors flex-shrink-0';
+                    link.textContent = posKey;
+                    nav.appendChild(link);
+                });
+
+                container.appendChild(nav);
+                uiElements.subHeader.replaceChildren(container);
             } catch (error) {
-                 console.error("Error rendering sub-header:", error);
-                 uiElements.subHeader.innerHTML = `<p class="text-red-500 text-center text-sm py-2">Error loading position navigation.</p>`;
+                console.error("Error rendering sub-header:", error);
+                const fallbackMessage = document.createElement('p');
+                fallbackMessage.className = 'text-red-500 text-center text-sm py-2';
+                fallbackMessage.textContent = 'Error loading position navigation.';
+                uiElements.subHeader.replaceChildren(fallbackMessage);
             }
         }
 
@@ -1533,7 +1753,7 @@
 
         function renderPlayerScoresTab() {
             if (!uiElements.playerScoresList) return;
-            uiElements.playerScoresList.innerHTML = '';
+            uiElements.playerScoresList.replaceChildren();
             const fragment = document.createDocumentFragment();
             const positionOrder = ["QB", "RB", "WR", "TE", "DST", "K"];
             const playoffRoundNames = ["WC", "Div", "Conf", "SB", "Total"];
@@ -1585,32 +1805,73 @@
             uiElements.playerScoresList.appendChild(fragment);
         }
 
-        async function fetchAndRenderStandings() {
+        function renderStandingsMessage(message, className) {
             if (!uiElements.standingsTableBody) return;
-            // Show loading state inside the table
-            uiElements.standingsTableBody.innerHTML = `<tr><td colspan="3" class="text-center text-[var(--text-muted)] py-8">Loading standings...</td></tr>`;
+            const row = document.createElement('tr');
+            const cell = document.createElement('td');
+            cell.colSpan = 3;
+            cell.className = className;
+            cell.textContent = message;
+            row.appendChild(cell);
+            uiElements.standingsTableBody.replaceChildren(row);
+        }
+
+        async function fetchAndRenderStandings({ forceRefresh = false } = {}) {
+            if (!uiElements.standingsTableBody) return;
+
+            const now = Date.now();
+            const cacheIsFresh = !forceRefresh
+                && Array.isArray(standingsCache.data)
+                && (now - standingsCache.fetchedAt) < STANDINGS_CACHE_TTL_MS;
+
+            if (cacheIsFresh) {
+                renderStandingsTab(standingsCache.data);
+                return;
+            }
+
+            if (standingsFetchPromise && !forceRefresh) {
+                try {
+                    const { data: pendingData, error } = await standingsFetchPromise;
+                    if (error) throw error;
+                    const sanitizedData = Array.isArray(pendingData) ? pendingData : [];
+                    standingsCache = { data: sanitizedData, fetchedAt: Date.now() };
+                    renderStandingsTab(sanitizedData);
+                } catch (error) {
+                    console.error("Error awaiting standings fetch:", error.message);
+                    renderStandingsMessage(`Could not load standings. ${error.message}`, 'text-center text-[var(--error)] py-8');
+                    invalidateStandingsCache();
+                }
+                return;
+            }
+
+            renderStandingsMessage('Loading standings...', 'text-center text-[var(--text-muted)] py-8');
 
             try {
-                // ** THIS IS THE NEW LIVE DATA CALL **
-                const { data: standingsData, error } = await supabaseClient.rpc('get_standings');
+                standingsFetchPromise = supabaseClient.rpc('get_standings');
+                const { data: standingsData, error } = await standingsFetchPromise;
                 if (error) throw error;
-                
-                renderStandingsTab(standingsData); // Pass live data to render
+
+                const sanitizedData = Array.isArray(standingsData) ? standingsData : [];
+                standingsCache = { data: sanitizedData, fetchedAt: Date.now() };
+                renderStandingsTab(sanitizedData);
             } catch (error) {
                 console.error("Error fetching standings:", error.message);
-                uiElements.standingsTableBody.innerHTML = `<tr><td colspan="3" class="text-center text-[var(--error)] py-8">Could not load standings. ${error.message}</td></tr>`;
+                renderStandingsMessage(`Could not load standings. ${error.message}`, 'text-center text-[var(--error)] py-8');
+                invalidateStandingsCache();
+            } finally {
+                standingsFetchPromise = null;
             }
         }
 
         function renderStandingsTab(standingsData = []) {
-             if (!uiElements.standingsTableBody) return;
-            uiElements.standingsTableBody.innerHTML = ''; // Clear previous standings
-            const fragment = document.createDocumentFragment();
-
-            if (!standingsData || standingsData.length === 0) {
-                 uiElements.standingsTableBody.innerHTML = `<tr><td colspan="3" class="text-center text-[var(--text-muted)] py-8">No teams have been submitted yet.</td></tr>`;
-                 return;
+            if (!uiElements.standingsTableBody) return;
+            if (!Array.isArray(standingsData) || standingsData.length === 0) {
+                renderStandingsMessage('No teams have been submitted yet.', 'text-center text-[var(--text-muted)] py-8');
+                return;
             }
+
+            uiElements.standingsTableBody.replaceChildren();
+            const fragment = document.createDocumentFragment();
 
             standingsData.forEach(team => {
                 const row = fragment.appendChild(document.createElement('tr'));

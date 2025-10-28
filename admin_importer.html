@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bulk Score Importer - Hurd NFL Playoff Pool</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <!-- 1. Import Supabase Library -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --accent: #00d084;
+            --accent-hover: #00b371;
+            --bg-deep: #0f1115;
+            --bg-medium: #1c1e24;
+            --bg-light: #292d36;
+            --text-primary: #e5e7eb;
+            --text-muted: #9ca3af;
+            --error: #ef4444;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-deep);
+            color: var(--text-primary);
+        }
+        .main-header {
+            background-color: var(--bg-medium);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            border-bottom: 1px solid var(--bg-light);
+        }
+        .content-section {
+            background-color: var(--bg-medium);
+            border: 1px solid var(--bg-light);
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        .file-drop-area {
+            border: 2px dashed var(--bg-light);
+            border-radius: 0.5rem;
+            padding: 2rem;
+            text-align: center;
+            transition: all 0.2s;
+        }
+        .file-drop-area.drag-over {
+            border-color: var(--accent);
+            background-color: var(--bg-light);
+        }
+        .upload-button {
+            background-color: var(--accent);
+            color: #000;
+            font-weight: 700;
+            transition: background-color 0.2s;
+            border-radius: 0.5rem;
+            padding: 0.75rem 2rem;
+            font-size: 1.1rem;
+        }
+        .upload-button:hover {
+            background-color: var(--accent-hover);
+        }
+        .upload-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .loading-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        .loading-overlay.active { display: flex; }
+        .loading-spinner {
+            border: 4px solid var(--bg-light);
+            border-top: 4px solid var(--accent);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .log-box {
+            background-color: var(--bg-deep);
+            border: 1px solid var(--bg-light);
+            border-radius: 0.5rem;
+            padding: 1rem;
+            font-family: monospace;
+            font-size: 0.875rem;
+            height: 200px;
+            overflow-y: auto;
+        }
+        .log-message { color: var(--text-primary); }
+        .log-error { color: var(--error); }
+        .log-success { color: var(--accent); }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <header class="main-header">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-20">
+                <h1 class="text-3xl font-extrabold text-white tracking-tight">Bulk Score Importer</h1>
+                <a href="admin.html" class="text-sm font-semibold text-[var(--accent)] hover:text-[var(--accent-hover)]">&larr; Back to Manual Entry</a>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mx-auto p-4 sm:p-6 lg:p-8">
+        <div class="content-section max-w-3xl mx-auto">
+            <h2 class="text-2xl sm:text-3xl font-extrabold text-white mb-4">Upload Scores CSV</h2>
+            <p class="text-[var(--text-muted)] mb-6">
+                Upload a CSV file with columns for player names and scores. The headers must include **'Player Name', 'WC', 'DIV', 'CONF', and 'SB'**. The tool will automatically match names to player IDs.
+            </p>
+
+            <div id="file-drop-area" class="file-drop-area">
+                <p class="text-[var(--text-muted)]">Drag & drop your CSV file here, or click to select a file.</p>
+                <input type="file" id="file-input" class="hidden" accept=".csv, text/csv">
+            </div>
+            
+            <p id="file-name" class="text-center mt-4 text-[var(--text-primary)]"></p>
+
+            <div class="mt-6 text-right">
+                <button id="upload-btn" class="upload-button" disabled>Parse and Upload Scores</button>
+            </div>
+
+            <h3 class="text-lg font-semibold text-white mt-8 mb-3">Upload Log</h3>
+            <div id="log-box" class="log-box">
+                <p class="log-message">Waiting for file...</p>
+            </div>
+        </div>
+    </main>
+
+    <div id="loading-overlay" class="loading-overlay" role="status" aria-live="polite">
+        <div class="loading-spinner" aria-label="Loading"></div>
+    </div>
+
+    <script type="module">
+        // =================================================================================
+        // --- SUPABASE & APP INITIALIZATION ---
+        // =================================================================================
+        
+        // **This imports your new supabaseClient.js file**
+        import { getSupabaseClient } from './scripts/supabaseClient.js';
+        
+        let supabaseClient;
+        let playerMap = new Map(); // To map player names to IDs
+        let parsedData = [];
+
+        try {
+            supabaseClient = getSupabaseClient();
+        } catch (e) {
+            console.error("Error initializing Supabase.", e.message);
+            alert("CRITICAL ERROR: Could not connect to Supabase. Check console.");
+        }
+
+        // --- DOM REFERENCES ---
+        const dropArea = document.getElementById('file-drop-area');
+        const fileInput = document.getElementById('file-input');
+        const fileNameDisplay = document.getElementById('file-name');
+        const uploadButton = document.getElementById('upload-btn');
+        const logBox = document.getElementById('log-box');
+        const loadingOverlay = document.getElementById('loading-overlay');
+
+        // =================================================================================
+        // --- APP INITIALIZATION ---
+        // =================================================================================
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!supabaseClient) {
+                log("Error: Supabase client not initialized. Page will not work.", "error");
+                return;
+            }
+            showLoading(true);
+            checkUserAndLoadPlayers();
+            setupEventListeners();
+        });
+
+        function setupEventListeners() {
+            // File Drop Area
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, preventDefaults, false);
+            });
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropArea.addEventListener(eventName, () => dropArea.classList.add('drag-over'), false);
+            });
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, () => dropArea.classList.remove('drag-over'), false);
+            });
+            dropArea.addEventListener('drop', handleDrop, false);
+            dropArea.addEventListener('click', () => fileInput.click());
+            fileInput.addEventListener('change', handleFileSelect);
+
+            // Upload Button
+            uploadButton.addEventListener('click', handleUpload);
+        }
+
+        // =================================================================================
+        // --- AUTH & DATA FETCHING ---
+        // =================================================================================
+
+        async function checkUserAndLoadPlayers() {
+            const { data, error } = await supabaseClient.auth.getSession();
+            if (error || !data.session) {
+                log("Authentication error. Redirecting to login.", "error");
+                await new Promise(r => setTimeout(r, 1500));
+                window.location.href = "login.html";
+                return;
+            }
+
+            log("Admin user authenticated. Fetching player list for mapping...");
+            try {
+                let { data: players, error: playersError } = await supabaseClient
+                    .from('players')
+                    .select('id, name');
+                
+                if (playersError) throw playersError;
+
+                // Create the name-to-ID map
+                players.forEach(player => {
+                    playerMap.set(player.name, player.id);
+                });
+                
+                log(`Successfully loaded ${playerMap.size} players. Ready for file upload.`, "success");
+            } catch (error) {
+                log(`Error fetching player list: ${error.message}`, "error");
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // =================================================================================
+        // --- FILE HANDLING ---
+        // =================================================================================
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const file = dt.files[0];
+            processFile(file);
+        }
+
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            processFile(file);
+        }
+
+        function processFile(file) {
+            if (!file || !file.type.match('csv') && file.type !== 'text/csv') {
+                log(`Invalid file type: ${file.type}. Please upload a .csv file.`, "error");
+                return;
+            }
+
+            log(`File selected: ${file.name}`, "message");
+            fileNameDisplay.textContent = file.name;
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const text = e.target.result;
+                    parsedData = parseAndMapCSV(text); // Use the new mapping function
+                    if (parsedData.length > 0) {
+                        log(`Successfully parsed and mapped ${parsedData.length} score entries. Ready to upload.`, "success");
+                        uploadButton.disabled = false;
+                    } else {
+                        log("File was empty or no valid data could be mapped.", "error");
+                    }
+                } catch (error) {
+                    log(`Error parsing file: ${error.message}`, "error");
+                    uploadButton.disabled = true;
+                }
+            };
+            reader.onerror = () => log("Error reading file.", "error");
+            reader.readAsText(file);
+        }
+
+        function parseAndMapCSV(text) {
+            const rows = text.split('\n').filter(row => row.trim() !== '' && !row.startsWith('#'));
+            const dataToUpload = [];
+            
+            log(`Found ${rows.length} data rows to process...`);
+            
+            const headerRow = rows[0].split(',').map(h => h.trim());
+            const nameIdx = headerRow.indexOf('Player Name');
+            const wcIdx = headerRow.indexOf('WC');
+            const divIdx = headerRow.indexOf('DIV');
+            const confIdx = headerRow.indexOf('CONF');
+            const sbIdx = headerRow.indexOf('SB');
+
+            if (nameIdx === -1 || wcIdx === -1 || divIdx === -1 || confIdx === -1 || sbIdx === -1) {
+                throw new Error("Invalid CSV. Header row must include 'Player Name', 'WC', 'DIV', 'CONF', and 'SB'.");
+            }
+
+            let unmatchedNames = 0;
+            for (let i = 1; i < rows.length; i++) {
+                const values = rows[i].split(',');
+                const playerName = values[nameIdx].trim();
+                
+                // Find the player ID from our map
+                const playerId = playerMap.get(playerName);
+                
+                if (!playerId) {
+                    log(`Warning: Could not find player ID for "${playerName}". Skipping row.`, "error");
+                    unmatchedNames++;
+                    continue;
+                }
+
+                // Add scores for each round
+                const rounds = [
+                    { round: 'WC', points: parseFloat(values[wcIdx]) },
+                    { round: 'DIV', points: parseFloat(values[divIdx]) },
+                    { round: 'CONF', points: parseFloat(values[confIdx]) },
+                    { round: 'SB', points: parseFloat(values[sbIdx]) }
+                ];
+
+                rounds.forEach(r => {
+                    // Only add if points are a valid number (e.g., not 0 or NaN)
+                    if (r.points && !isNaN(r.points)) { 
+                        dataToUpload.push({
+                            player_id_to_update: playerId,
+                            round_to_update: r.round,
+                            points_to_update: r.points
+                        });
+                    }
+                });
+            }
+
+            if (unmatchedNames > 0) {
+                 log(`Finished parsing. ${unmatchedNames} player names could not be matched.`, "error");
+            }
+            if (dataToUpload.length === 0 && unmatchedNames === 0) {
+                log("Parsed file, but no non-zero scores were found.", "message");
+            }
+            
+            return dataToUpload;
+        }
+
+        // =================================================================================
+        // --- CORE UPLOAD LOGIC ---
+        // =================================================================================
+
+        async function handleUpload() {
+            if (parsedData.length === 0) {
+                alert("No valid data to upload. Please select a file with scores.");
+                return;
+            }
+
+            showLoading(true);
+            log(`Uploading ${parsedData.length} score entries...`);
+
+            try {
+                // Call the database function
+                const { error } = await supabaseClient.rpc('bulk_upsert_player_scores', {
+                    scores_to_update: parsedData
+                });
+
+                if (error) throw error;
+
+                log(`Successfully saved ${parsedData.length} scores!`, "success");
+                alert("Scores saved successfully!");
+                // Reset UI
+                fileNameDisplay.textContent = "";
+                uploadButton.disabled = true;
+                parsedData = [];
+                fileInput.value = ""; // Clear file input
+
+            } catch (error) {
+                console.error("Error saving scores:", error.message);
+                log(`Error: ${error.message}`, "error");
+                alert("Error: " + error.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // =================================================================================
+        // --- UI HELPERS ---
+        // =================================================================================
+
+        function log(message, type = 'message') {
+            const p = document.createElement('p');
+            p.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            if (type === 'error') p.className = 'log-error';
+            if (type === 'success') p.className = 'log-success';
+            if (type === 'message') p.className = 'log-message';
+            logBox.appendChild(p);
+            logBox.scrollTop = logBox.scrollHeight; // Auto-scroll to bottom
+        }
+
+        function showLoading(isLoading) {
+            loadingOverlay.classList.toggle('active', isLoading);
+        }
+    </script>
+</body>
+</html>

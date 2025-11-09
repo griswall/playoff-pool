@@ -10,7 +10,8 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Runtime Supabase configuration (replace values or set window.__SUPABASE_CONFIG__) -->
     <script id="supabase-config" type="application/json">
-        {"url":"YOUR_SUPABASE_URL","anonKey":"YOUR_SUPABASE_ANON_KEY","adminEmails":[]}
+        <!-- **** NOTE: adminEmails array is no longer needed here **** -->
+        {"url":"YOUR_SUPABASE_URL","anonKey":"YOUR_SUPABASE_ANON_KEY"}
     </script>
     <style>
         :root {
@@ -743,6 +744,19 @@
                 measurePerformance('renderPlayerScoresTab', renderPlayerScoresTab); 
                 // **MODIFIED: Call the *new* async function for standings**
                 measurePerformance('fetchAndRenderStandings', fetchAndRenderStandings); 
+
+                // *** NEW: Check for URL hash to activate the correct tab ***
+                const currentHash = window.location.hash;
+                if (currentHash) {
+                    const navLink = document.querySelector(`.nav-link[href="${currentHash}"]`);
+                    if (navLink) {
+                        // Use a small timeout to ensure the page is settled
+                        // and event listeners are attached.
+                        safeSetTimeout(() => {
+                            navLink.click();
+                        }, 100); 
+                    }
+                }
             }
         }
 
@@ -833,7 +847,11 @@
                  console.error("Error fetching data:", error.message);
                 showAlertModal("Data Error", "Could not load data from the database. Please try refreshing.");
             } finally {
-                hideLoadingState();
+                // Only hide loading if we are NOT editing a team
+                // (loadTeamForEditing has its own loading logic)
+                if (!new URLSearchParams(window.location.search).has('edit_team_id')) {
+                    hideLoadingState();
+                }
             }
         }
 

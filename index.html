@@ -10,7 +10,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Runtime Supabase configuration (replace values or set window.__SUPABASE_CONFIG__) -->
     <script id="supabase-config" type="application/json">
-        <!-- **** NOTE: adminEmails array is no longer needed here **** -->
         {"url":"YOUR_SUPABASE_URL","anonKey":"YOUR_SUPABASE_ANON_KEY"}
     </script>
     <style>
@@ -345,7 +344,6 @@
                 <h1 class="text-3xl font-extrabold text-white tracking-tight">Hurd NFL Playoff Pool</h1>
                 <div class="flex items-center space-x-6">
                     <nav class="flex space-x-1 sm:space-x-2">
-                        <!-- **** FIX: Updated hrefs to point to the correct tab IDs **** -->
                         <a href="#draft-team-view" id="nav-draft-team" class="nav-link active">Draft Team</a>
                         <a href="#player-scores-view" id="nav-player-scores" class="nav-link">Player Scores</a>
                         <a href="#standings-view" id="nav-standings" class="nav-link">Standings</a>
@@ -506,8 +504,8 @@
         // --- SUPABASE & APP INITIALIZATION ---
         // =================================================================================
         
-        // **** UPDATED: Import checkIsAdmin ****
-        import { getSupabaseClient, checkIsAdmin } from './scripts/supabaseClient.js';
+        // **** UPDATED: Import checkIsAdmin AND clearAdminCache ****
+        import { getSupabaseClient, checkIsAdmin, clearAdminCache } from './scripts/supabaseClient.js';
         
         let supabaseClient;
         try {
@@ -546,7 +544,7 @@
             teamCounts: {}, 
             playersById: {}, 
             allPlayersByPosition: {},
-            editingTeamId: null // ** NEW: Track if we are in "edit mode" **
+            editingTeamId: null 
         };
 
         const timeouts = new Set();
@@ -749,17 +747,17 @@
                 const urlParams = new URLSearchParams(window.location.search);
                 const teamIdToEdit = urlParams.get('edit_team_id');
 
-                await fetchPlayersAndScores(); // **MODIFIED: Fetch players AND scores**
+                await fetchPlayersAndScores(); 
 
                 if (teamIdToEdit) {
                     await loadTeamForEditing(teamIdToEdit);
                 } else {
+                    // Only hide loading if not in edit mode (loadTeamForEditing handles its own)
                     hideLoadingState();
                 }
                 
                 // Now that data is loaded, render the tabs that depend on it
                 measurePerformance('renderPlayerScoresTab', renderPlayerScoresTab); 
-                // **MODIFIED: Call the *new* async function for standings**
                 measurePerformance('fetchAndRenderStandings', fetchAndRenderStandings); 
 
                 // *** NEW: Check for URL hash to activate the correct tab ***
@@ -767,8 +765,6 @@
                 if (currentHash) {
                     const navLink = document.querySelector(`.nav-link[href="${currentHash}"]`);
                     if (navLink) {
-                        // Use a small timeout to ensure the page is settled
-                        // and event listeners are attached.
                         safeSetTimeout(() => {
                             navLink.click();
                         }, 100); 
@@ -799,6 +795,10 @@
 
         async function handleLogout() {
             showLoadingState();
+            
+            // **** NEW: Clear the admin cache on logout ****
+            clearAdminCache();
+
             const { error } = await supabaseClient.auth.signOut();
             if (error) {
                 showAlertModal("Logout Error", error.message);
@@ -871,13 +871,8 @@
             } catch (error) {
                  console.error("Error fetching data:", error.message);
                 showAlertModal("Data Error", "Could not load data from the database. Please try refreshing.");
-            } finally {
-                // Only hide loading if we are NOT editing a team
-                // (loadTeamForEditing has its own loading logic)
-                if (!new URLSearchParams(window.location.search).has('edit_team_id')) {
-                    hideLoadingState();
-                }
-            }
+            } 
+            // ** REMOVED finally { hideLoadingState() } ** // It's handled by checkUser() and loadTeamForEditing()
         }
 
         async function loadTeamForEditing(teamId) {
@@ -1013,7 +1008,6 @@
                         };
                     });
                 
-                // **FIX: Check for valid team_id before deleting**
                 if (!appState.editingTeamId) {
                     throw new Error("Team ID is missing, cannot update players.");
                 }
@@ -1131,7 +1125,6 @@
                         content.classList.toggle('active', content.id === targetId);
                      });
                      
-                     // ** NEW: Refresh standings when tab is clicked **
                      if (targetId === 'standings-view') {
                          await fetchAndRenderStandings();
                      }
@@ -1235,7 +1228,7 @@
             const positionOrder = ["QB", "RB", "WR", "TE", "DST", "K"];
 
             positionOrder.forEach((posKey) => {
-                const players = appState.allPlayersByPosition[posKey]; // **FIX: Use appState**
+                const players = appState.allPlayersByPosition[posKey]; 
                 if (Array.isArray(players) && players.length > 0) {
                     const section = document.createElement('section');
                     section.className = 'position-group';
@@ -1686,3 +1679,4 @@
 
 </body>
 </html>
+

@@ -51,6 +51,16 @@
             background: var(--bg-light);
             color: white;
         }
+        /* Style for the new admin link */
+        .nav-link.admin-link {
+            color: var(--yellow);
+            border: 1px solid var(--yellow);
+        }
+        .nav-link.admin-link:hover {
+            background-color: var(--yellow);
+            color: #000;
+            border-color: var(--yellow);
+        }
         .content-section {
             background-color: var(--bg-medium);
             border: 1px solid var(--bg-light);
@@ -181,6 +191,8 @@
                         <a href="index.html#player-scores-view" id="nav-player-scores" class="nav-link">Player Scores</a>
                         <a href="index.html#standings-view" id="nav-standings" class="nav-link">Standings</a>
                         <a href="index.html#rules-view" id="nav-rules" class="nav-link">Rules</a>
+                        <!-- **** NEW: Hidden Admin Link **** -->
+                        <a href="admin.html" id="nav-admin" class="nav-link admin-link hidden">Admin Panel</a>
                     </nav>
                     <div id="user-auth-section" class="flex items-center">
                         <a href="login.html" id="login-button" class="nav-link bg-[var(--accent)] text-black font-semibold hidden">Login / Sign Up</a>
@@ -227,7 +239,8 @@
     </div>
 
     <script type="module">
-        import { getSupabaseClient } from './scripts/supabaseClient.js';
+        // **** UPDATED: Import checkIsAdmin ****
+        import { getSupabaseClient, checkIsAdmin } from './scripts/supabaseClient.js';
 
         // =================================================================================
         // --- SUPABASE & APP INITIALIZATION ---
@@ -258,7 +271,9 @@
             confirmModalTitle: document.getElementById('confirm-modal-title'),
             confirmModalMessage: document.getElementById('confirm-modal-message'),
             confirmModalConfirmBtn: document.getElementById('confirm-modal-confirm-btn'),
-            confirmModalCancelBtn: document.getElementById('confirm-modal-cancel-btn')
+            confirmModalCancelBtn: document.getElementById('confirm-modal-cancel-btn'),
+            // **** NEW: Reference to admin link ****
+            adminNavButton: document.getElementById('nav-admin')
         };
 
         // =================================================================================
@@ -329,8 +344,20 @@
             } else {
                 currentUser = data.session.user;
                 updateAuthUI(true, currentUser.email);
+
+                // **** NEW: Check for admin status ****
+                checkAdminStatus();
+
                 await fetchMyTeams();
                 showLoading(false);
+            }
+        }
+
+        // **** NEW: Function to check and show admin link ****
+        async function checkAdminStatus() {
+            const isAdmin = await checkIsAdmin(); // Uses the function from supabaseClient.js
+            if (isAdmin) {
+                uiElements.adminNavButton?.classList.remove('hidden');
             }
         }
 

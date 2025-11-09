@@ -10,7 +10,8 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Runtime Supabase configuration (replace values or set window.__SUPABASE_CONFIG__) -->
     <script id="supabase-config" type="application/json">
-        {"url":"YOUR_SUPABASE_URL","anonKey":"YOUR_SUPABASE_ANON_KEY","adminEmails":[]}
+        <!-- **** NOTE: adminEmails array is no longer needed here **** -->
+        {"url":"YOUR_SUPABASE_URL","anonKey":"YOUR_SUPABASE_ANON_KEY"}
     </script>
     <style>
         :root {
@@ -171,16 +172,17 @@
         // =================================================================================
         
         // **This imports your new supabaseClient.js file**
-        import { getSupabaseClient, getSupabaseConfig, isAdminEmail } from './scripts/supabaseClient.js';
+        // **** UPDATED: Added checkIsAdmin, removed getSupabaseConfig and isAdminEmail ****
+        import { getSupabaseClient, checkIsAdmin } from './scripts/supabaseClient.js';
 
         let supabaseClient;
         let allPlayers = []; // To store fetched players
         let playerScores = {}; // To store fetched scores { "player_id-round": points }
-        let adminEmails = [];
+        // **** REMOVED: adminEmails array is no longer needed ****
+        // let adminEmails = [];
 
         try {
-            const config = getSupabaseConfig();
-            adminEmails = config.adminEmails;
+            // **** REMOVED: config and adminEmails loading ****
             supabaseClient = getSupabaseClient();
         } catch (e) {
             console.error("Error initializing Supabase.", e.message);
@@ -227,19 +229,16 @@
                 return;
             }
 
-            if (!adminEmails.length) {
-                console.error("No admin emails configured. Blocked admin page access by default.");
-                alert("Admin access has not been configured. Please update your Supabase configuration.");
-                window.location.href = "index.html";
-                return;
-            }
+            // **** REMOVED: Old client-side admin check ****
 
-            // ** SECURITY CHECK **
-            if (!isAdminEmail(data.session.user.email)) {
+            // **** NEW: Secure server-side admin check ****
+            const isAdmin = await checkIsAdmin();
+            if (!isAdmin) {
                 alert("Access Denied: This page is for administrators only.");
                 window.location.href = "index.html";
                 return;
             }
+            // **** END NEW CHECK ****
 
             await fetchAllData();
         }

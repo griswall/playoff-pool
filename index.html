@@ -55,6 +55,16 @@
             background: var(--bg-light);
             color: white;
         }
+        /* Style for the new admin link */
+        .nav-link.admin-link {
+            color: var(--yellow);
+            border: 1px solid var(--yellow);
+        }
+        .nav-link.admin-link:hover {
+            background-color: var(--yellow);
+            color: #000;
+            border-color: var(--yellow);
+        }
         .sub-header {
             background-color: var(--bg-deep);
             border-bottom: 1px solid var(--bg-light);
@@ -340,6 +350,8 @@
                         <a href="#player-scores-view" id="nav-player-scores" class="nav-link">Player Scores</a>
                         <a href="#standings-view" id="nav-standings" class="nav-link">Standings</a>
                         <a href="#rules-view" id="nav-rules" class="nav-link">Rules</a>
+                        <!-- **** NEW: Hidden Admin Link **** -->
+                        <a href="admin.html" id="nav-admin" class="nav-link admin-link hidden">Admin Panel</a>
                     </nav>
                     <div id="user-auth-section" class="flex items-center">
                         <!-- Logged Out View (default) -->
@@ -494,8 +506,8 @@
         // --- SUPABASE & APP INITIALIZATION ---
         // =================================================================================
         
-        // **This imports your new supabaseClient.js file**
-        import { getSupabaseClient } from './scripts/supabaseClient.js';
+        // **** UPDATED: Import checkIsAdmin ****
+        import { getSupabaseClient, checkIsAdmin } from './scripts/supabaseClient.js';
         
         let supabaseClient;
         try {
@@ -660,7 +672,9 @@
             promptModalInput: document.getElementById('prompt-modal-input'),
             promptModalError: document.getElementById('prompt-modal-error'),
             promptModalConfirmBtn: document.getElementById('prompt-modal-confirm-btn'),
-            promptModalCancelBtn: document.getElementById('prompt-modal-cancel-btn')
+            promptModalCancelBtn: document.getElementById('prompt-modal-cancel-btn'),
+            // **** NEW: Reference to admin link ****
+            adminNavButton: document.getElementById('nav-admin')
         };
 
         // =================================================================================
@@ -729,6 +743,9 @@
                 appState.currentSession = data.session;
                 updateAuthUI(true, data.session.user.email);
                 
+                // **** NEW: Check for admin status ****
+                checkAdminStatus();
+
                 const urlParams = new URLSearchParams(window.location.search);
                 const teamIdToEdit = urlParams.get('edit_team_id');
 
@@ -757,6 +774,14 @@
                         }, 100); 
                     }
                 }
+            }
+        }
+
+        // **** NEW: Function to check and show admin link ****
+        async function checkAdminStatus() {
+            const isAdmin = await checkIsAdmin(); // Uses the function from supabaseClient.js
+            if (isAdmin) {
+                uiElements.adminNavButton?.classList.remove('hidden');
             }
         }
 
@@ -1088,7 +1113,7 @@
             if (!clickedLink) return;
             
             const href = clickedLink.getAttribute('href');
-            // Check if it's a full page link
+            // Check if it's a full page link (like admin.html)
             if (href.includes('.html')) {
                 window.location.href = href;
                 return;
@@ -1661,3 +1686,4 @@
 
 </body>
 </html>
+

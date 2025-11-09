@@ -3,9 +3,6 @@ let supabaseClientInstance = null;
 let cachedConfig = null;
 let cachedConfigError = null;
 
-// This function is no longer needed as admin emails are not on the client
-// function normalizeAdminEmails(emails) { ... }
-
 function parseConfigFromScript() {
   if (typeof document === 'undefined') {
     return {};
@@ -37,7 +34,6 @@ function parseConfigFromMetaTags() {
   const config = {};
   const urlMeta = document.querySelector('meta[name="supabase-url"]');
   const keyMeta = document.querySelector('meta[name="supabase-anon-key"]');
-  // Removed adminMeta, no longer needed
 
   if (urlMeta?.content) {
     config.url = urlMeta.content;
@@ -83,9 +79,8 @@ function resolveSupabaseConfig() {
     if (typeof source.anonKey === 'string') {
       acc.anonKey = source.anonKey;
     }
-    // Removed adminEmails array logic
     return acc;
-  }, { url: '', anonKey: '' }); // Removed adminEmails default
+  }, { url: '', anonKey: '' });
 
   merged.url = (merged.url || '').trim();
   merged.anonKey = (merged.anonKey || '').trim();
@@ -97,8 +92,6 @@ function resolveSupabaseConfig() {
     merged.anonKey = '';
   }
 
-  // Removed adminEmails normalization
-
   if (!merged.url || !merged.anonKey) {
     const error = new Error('Supabase configuration is missing the project URL or anon key.');
     cachedConfigError = error;
@@ -108,7 +101,6 @@ function resolveSupabaseConfig() {
   cachedConfig = Object.freeze({
     url: merged.url,
     anonKey: merged.anonKey
-    // Removed adminEmails
   });
 
   return cachedConfig;
@@ -123,8 +115,6 @@ function ensureSupabaseIsAvailable() {
 export function getSupabaseConfig() {
   return resolveSupabaseConfig();
 }
-
-// REMOVED the client-side isAdminEmail function
 
 // --- NEW SECURE ADMIN CHECK ---
 let isAdminCache = null;
@@ -150,6 +140,13 @@ export async function checkIsAdmin() {
 
   isAdminCache = data; // Cache success
   return data;
+}
+
+/**
+ * Clears the admin status cache. This must be called on logout.
+ */
+export function clearAdminCache() {
+  isAdminCache = null;
 }
 // --- END NEW SECURE ADMIN CHECK ---
 

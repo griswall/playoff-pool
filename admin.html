@@ -8,6 +8,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
     <!-- 1. Import Supabase Library -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Runtime Supabase configuration (replace values or set window.__SUPABASE_CONFIG__) -->
+    <script id="supabase-config" type="application/json">
+        {"url":"YOUR_SUPABASE_URL","anonKey":"YOUR_SUPABASE_ANON_KEY","adminEmails":[]}
+    </script>
     <style>
         :root {
             --accent: #00d084;
@@ -167,16 +171,16 @@
         // =================================================================================
         
         // **This imports your new supabaseClient.js file**
-        import { getSupabaseClient } from './scripts/supabaseClient.js';
-        
+        import { getSupabaseClient, getSupabaseConfig, isAdminEmail } from './scripts/supabaseClient.js';
+
         let supabaseClient;
         let allPlayers = []; // To store fetched players
         let playerScores = {}; // To store fetched scores { "player_id-round": points }
-        
-        // ** TODO: Set this to your admin email to protect the page **
-        const ADMIN_EMAIL = "dkupsco@gmail.com"; // <-- SET YOUR ADMIN EMAIL HERE
+        let adminEmails = [];
 
         try {
+            const config = getSupabaseConfig();
+            adminEmails = config.adminEmails;
             supabaseClient = getSupabaseClient();
         } catch (e) {
             console.error("Error initializing Supabase.", e.message);
@@ -222,9 +226,16 @@
                 window.location.href = "login.html"; // Redirect if no session
                 return;
             }
-            
+
+            if (!adminEmails.length) {
+                console.error("No admin emails configured. Blocked admin page access by default.");
+                alert("Admin access has not been configured. Please update your Supabase configuration.");
+                window.location.href = "index.html";
+                return;
+            }
+
             // ** SECURITY CHECK **
-            if (data.session.user.email !== ADMIN_EMAIL) {
+            if (!isAdminEmail(data.session.user.email)) {
                 alert("Access Denied: This page is for administrators only.");
                 window.location.href = "index.html";
                 return;

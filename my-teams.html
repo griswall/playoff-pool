@@ -239,8 +239,8 @@
     </div>
 
     <script type="module">
-        // **** UPDATED: Import checkIsAdmin ****
-        import { getSupabaseClient, checkIsAdmin } from './scripts/supabaseClient.js';
+        // **** UPDATED: Import checkIsAdmin AND clearAdminCache ****
+        import { getSupabaseClient, checkIsAdmin, clearAdminCache } from './scripts/supabaseClient.js';
 
         // =================================================================================
         // --- SUPABASE & APP INITIALIZATION ---
@@ -375,6 +375,10 @@
 
         async function handleLogout() {
             showLoading(true);
+            
+            // **** NEW: Clear the admin cache on logout ****
+            clearAdminCache();
+
             await supabaseClient.auth.signOut();
             window.location.href = "login.html";
         }
@@ -618,3 +622,4 @@
     </script>
 </body>
 </html>
+

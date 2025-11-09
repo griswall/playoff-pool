@@ -3,16 +3,8 @@ let supabaseClientInstance = null;
 let cachedConfig = null;
 let cachedConfigError = null;
 
-function normalizeAdminEmails(emails) {
-  if (!Array.isArray(emails)) {
-    return [];
-  }
-
-  return emails
-    .filter((email) => typeof email === 'string')
-    .map((email) => email.trim().toLowerCase())
-    .filter((email) => email.length > 0);
-}
+// This function is no longer needed as admin emails are not on the client
+// function normalizeAdminEmails(emails) { ... }
 
 function parseConfigFromScript() {
   if (typeof document === 'undefined') {
@@ -45,7 +37,7 @@ function parseConfigFromMetaTags() {
   const config = {};
   const urlMeta = document.querySelector('meta[name="supabase-url"]');
   const keyMeta = document.querySelector('meta[name="supabase-anon-key"]');
-  const adminMeta = document.querySelector('meta[name="supabase-admin-emails"]');
+  // Removed adminMeta, no longer needed
 
   if (urlMeta?.content) {
     config.url = urlMeta.content;
@@ -53,13 +45,7 @@ function parseConfigFromMetaTags() {
   if (keyMeta?.content) {
     config.anonKey = keyMeta.content;
   }
-  if (adminMeta?.content) {
-    config.adminEmails = adminMeta.content
-      .split(',')
-      .map((email) => email.trim())
-      .filter((email) => email.length > 0);
-  }
-
+  
   return config;
 }
 
@@ -97,11 +83,9 @@ function resolveSupabaseConfig() {
     if (typeof source.anonKey === 'string') {
       acc.anonKey = source.anonKey;
     }
-    if (Array.isArray(source.adminEmails)) {
-      acc.adminEmails = source.adminEmails;
-    }
+    // Removed adminEmails array logic
     return acc;
-  }, { url: '', anonKey: '', adminEmails: [] });
+  }, { url: '', anonKey: '' }); // Removed adminEmails default
 
   merged.url = (merged.url || '').trim();
   merged.anonKey = (merged.anonKey || '').trim();
@@ -113,7 +97,7 @@ function resolveSupabaseConfig() {
     merged.anonKey = '';
   }
 
-  merged.adminEmails = normalizeAdminEmails(merged.adminEmails);
+  // Removed adminEmails normalization
 
   if (!merged.url || !merged.anonKey) {
     const error = new Error('Supabase configuration is missing the project URL or anon key.');
@@ -123,8 +107,8 @@ function resolveSupabaseConfig() {
 
   cachedConfig = Object.freeze({
     url: merged.url,
-    anonKey: merged.anonKey,
-    adminEmails: Object.freeze([...merged.adminEmails])
+    anonKey: merged.anonKey
+    // Removed adminEmails
   });
 
   return cachedConfig;
@@ -140,17 +124,35 @@ export function getSupabaseConfig() {
   return resolveSupabaseConfig();
 }
 
-export function isAdminEmail(email) {
-  if (typeof email !== 'string') {
+// REMOVED the client-side isAdminEmail function
+
+// --- NEW SECURE ADMIN CHECK ---
+let isAdminCache = null;
+
+/**
+ * Checks if the current authenticated user is an admin by calling a secure database function.
+ * Caches the result for the session.
+ */
+export async function checkIsAdmin() {
+  // Return cached result if we've checked before
+  if (isAdminCache !== null) {
+    return isAdminCache;
+  }
+
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase.rpc('is_admin_user');
+
+  if (error) {
+    console.error("Error checking admin status:", error.message);
+    isAdminCache = false; // Cache failure as false
     return false;
   }
-  const lowerCaseEmail = email.trim().toLowerCase();
-  if (!lowerCaseEmail) {
-    return false;
-  }
-  const config = resolveSupabaseConfig();
-  return config.adminEmails.includes(lowerCaseEmail);
+
+  isAdminCache = data; // Cache success
+  return data;
 }
+// --- END NEW SECURE ADMIN CHECK ---
+
 
 export function getSupabaseClient() {
   if (supabaseClientInstance) {

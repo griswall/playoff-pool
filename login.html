@@ -5,68 +5,87 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - Hurd NFL Playoff Pool</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
     
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        brand: {
+                            DEFAULT: '#00d084',
+                            dark: '#00a366',
+                            glow: 'rgba(0, 208, 132, 0.5)'
+                        },
+                        surface: {
+                            100: '#1e293b',
+                            200: '#334155',
+                            300: '#475569',
+                            800: '#0f172a',
+                            900: '#020617',
+                        }
+                    },
+                    backgroundImage: {
+                        'main-gradient': 'radial-gradient(circle at 50% 0%, #1e293b 0%, #020617 80%)',
+                    }
+                }
+            }
+        }
+    </script>
+
     <style>
-        :root {
-            --accent: #00d084;
-            --accent-hover: #00b371;
-            --bg-deep: #0f1115;
-            --bg-medium: #1c1e24;
-            --bg-light: #292d36;
-            --text-primary: #e5e7eb;
-            --text-muted: #9ca3af;
-            --error: #ef4444;
-            --yellow: #facc15;
-        }
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--bg-deep);
-            color: var(--text-primary);
+            background: #020617;
+            background-image: radial-gradient(circle at 50% -20%, #1e293b 0%, #020617 60%);
+            background-attachment: fixed;
+            color: #f8fafc;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
-        .auth-form-container {
-            background-color: var(--bg-medium);
-            border: 1px solid var(--bg-light);
-            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-            border-radius: 0.75rem;
+
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
         }
+
         .form-input {
-            background-color: var(--bg-deep);
-            border: 1px solid var(--bg-light);
-            color: var(--text-primary);
+            background-color: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            transition: all 0.2s ease;
         }
         .form-input:focus {
             outline: none;
-            border-color: var(--accent);
-            box-shadow: 0 0 0 3px rgba(0, 208, 132, 0.3);
+            border-color: #00d084;
+            box-shadow: 0 0 0 1px #00d084;
+            background-color: rgba(15, 23, 42, 1);
         }
-        .form-button {
-            background-color: var(--accent);
-            color: #000;
-            font-weight: 700;
-            transition: background-color 0.2s;
-            border-radius: 0.5rem;
-        }
-        .form-button:hover {
-            background-color: var(--accent-hover);
-        }
-        .form-button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
+
         .toggle-link {
-            color: var(--accent);
+            color: #00d084;
             cursor: pointer;
-            font-weight: 600;
+            font-weight: 700;
+            transition: color 0.2s;
         }
         .toggle-link:hover {
-            color: var(--accent-hover);
+            color: #00a366;
+            text-decoration: underline;
         }
+        
         .error-message {
             background-color: rgba(239, 68, 68, 0.1);
-            border: 1px solid var(--error);
-            color: var(--error);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
             padding: 0.75rem;
             border-radius: 0.5rem;
             font-size: 0.875rem;
@@ -74,48 +93,52 @@
         }
     </style>
 </head>
-<body class="flex items-center justify-center min-h-screen p-4">
+<body class="p-4">
 
-    <div class="w-full max-w-md mx-auto">
-        <h1 class="text-4xl font-extrabold text-white tracking-tight text-center mb-8">Hurd NFL Playoff Pool</h1>
+    <div class="w-full max-w-md mx-auto space-y-8">
+        <div class="text-center space-y-2">
+            <div class="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-gradient-to-br from-brand to-brand-dark shadow-[0_0_20px_rgba(0,208,132,0.4)] mb-4">
+                <svg class="w-7 h-7 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+            </div>
+            <h1 class="text-3xl font-black text-white tracking-tight uppercase italic">Hurd <span class="text-brand">Pool</span></h1>
+            <p class="text-gray-400 font-medium text-sm">Sign in to manage your lineup</p>
+        </div>
         
-        <div class="auth-form-container p-8">
+        <div class="glass-panel p-8 rounded-2xl">
 
             <form id="login-form" class="space-y-6">
-                <h2 class="text-2xl font-bold text-center text-white">Sign In</h2>
                 <div id="login-error-message" class="error-message hidden"></div>
-                <div>
-                    <label for="login-email" class="block text-sm font-medium text-[var(--text-muted)]">Email</label>
+                <div class="space-y-1">
+                    <label for="login-email" class="block text-xs font-bold uppercase tracking-wider text-gray-400">Email Address</label>
                     <input type="email" id="login-email" name="email" required autocomplete="email"
-                           class="form-input w-full p-3 mt-1 rounded-md">
+                           class="form-input w-full p-3 rounded-lg text-sm" placeholder="you@example.com">
                 </div>
-                <div>
-                    <label for="login-password" class="block text-sm font-medium text-[var(--text-muted)]">Password</label>
+                <div class="space-y-1">
+                    <label for="login-password" class="block text-xs font-bold uppercase tracking-wider text-gray-400">Password</label>
                     <input type="password" id="login-password" name="password" required autocomplete="current-password"
-                           class="form-input w-full p-3 mt-1 rounded-md">
+                           class="form-input w-full p-3 rounded-lg text-sm" placeholder="••••••••">
                 </div>
-                <button type="submit" id="login-submit-button" class="form-button w-full py-3">Sign In</button>
-                <p class="text-sm text-center text-[var(--text-muted)]">
-                    Don't have an account? 
-                    <span id="toggle-to-signup" class="toggle-link">Sign up</span>
+                <button type="submit" id="login-submit-button" class="w-full bg-brand hover:bg-brand-dark text-black font-black text-lg py-3 rounded-lg shadow-[0_0_15px_rgba(0,208,132,0.2)] transition-all uppercase tracking-wide mt-2">Sign In</button>
+                <p class="text-sm text-center text-gray-400 pt-2">
+                    New to the pool? 
+                    <span id="toggle-to-signup" class="toggle-link">Create account</span>
                 </p>
             </form>
 
             <form id="signup-form" class="space-y-6 hidden">
-                <h2 class="text-2xl font-bold text-center text-white">Create Account</h2>
                 <div id="signup-error-message" class="error-message hidden"></div>
-                <div>
-                    <label for="signup-email" class="block text-sm font-medium text-[var(--text-muted)]">Email</label>
+                <div class="space-y-1">
+                    <label for="signup-email" class="block text-xs font-bold uppercase tracking-wider text-gray-400">Email Address</label>
                     <input type="email" id="signup-email" name="email" required autocomplete="email"
-                           class="form-input w-full p-3 mt-1 rounded-md">
+                           class="form-input w-full p-3 rounded-lg text-sm" placeholder="you@example.com">
                 </div>
-                <div>
-                    <label for="signup-password" class="block text-sm font-medium text-[var(--text-muted)]">Password</label>
+                <div class="space-y-1">
+                    <label for="signup-password" class="block text-xs font-bold uppercase tracking-wider text-gray-400">Create Password</label>
                     <input type="password" id="signup-password" name="password" required autocomplete="new-password" minlength="6"
-                           class="form-input w-full p-3 mt-1 rounded-md" placeholder="At least 6 characters">
+                           class="form-input w-full p-3 rounded-lg text-sm" placeholder="At least 6 characters">
                 </div>
-                <button type="submit" id="signup-submit-button" class="form-button w-full py-3">Create Account</button>
-                <p class="text-sm text-center text-[var(--text-muted)]">
+                <button type="submit" id="signup-submit-button" class="w-full bg-brand hover:bg-brand-dark text-black font-black text-lg py-3 rounded-lg shadow-[0_0_15px_rgba(0,208,132,0.2)] transition-all uppercase tracking-wide mt-2">Create Account</button>
+                <p class="text-sm text-center text-gray-400 pt-2">
                     Already have an account? 
                     <span id="toggle-to-login" class="toggle-link">Sign in</span>
                 </p>
@@ -231,8 +254,8 @@
             button.disabled = isLoading;
             if (isLoading) {
                 button.innerHTML = `
-                    <div class="flex items-center justify-center">
-                        <svg class="animate-spin -ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <div class="flex items-center justify-center gap-2">
+                        <svg class="animate-spin h-5 w-5 text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>

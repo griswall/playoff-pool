@@ -92,8 +92,8 @@
         }
 
         /* Card Content Layout */
-        .card-left { display: flex; align-items: center; gap: 0.75rem; flex: 1; }
-        .card-right { text-align: right; }
+        .card-left { display: flex; align-items: center; gap: 0.75rem; flex: 1; min-width: 0; /* Prevents flex item from overflowing */ }
+        .card-right { text-align: right; flex-shrink: 0; }
 
         /* Player Image */
         .player-avatar {
@@ -184,6 +184,9 @@
             font-size: 0.75rem;
         }
         .player-fallback-initial.is-visible { display: flex; }
+        
+        /* Sub Header Visibility */
+        .sub-header-hidden { display: none !important; }
 
     </style>
 </head>
@@ -388,14 +391,17 @@
             leftDiv.className = 'card-left';
 
             // Avatar
+            // *** FIX: Added explicit width and height and shrink-0 to container ***
             const imgContainer = document.createElement('div');
-            imgContainer.className = 'relative';
+            imgContainer.className = 'relative w-[42px] h-[42px] shrink-0';
+            
             const img = document.createElement('img');
             img.src = player.imageUrl || '';
-            img.className = 'player-avatar';
+            img.className = 'player-avatar w-full h-full';
             img.loading = 'lazy';
+            
             const fallback = document.createElement('div');
-            fallback.className = 'player-fallback-initial player-avatar absolute inset-0';
+            fallback.className = 'player-fallback-initial player-avatar absolute inset-0 w-full h-full';
             fallback.textContent = (player.name?.charAt(0) || '?');
             
             img.onerror = () => { img.style.display='none'; fallback.classList.add('is-visible'); };
@@ -406,14 +412,14 @@
 
             // Text Info
             const infoDiv = document.createElement('div');
-            infoDiv.className = 'flex flex-col';
+            infoDiv.className = 'flex flex-col min-w-0';
             
             const nameEl = document.createElement('span');
-            nameEl.className = 'text-sm font-bold text-white leading-tight group-hover:text-brand transition-colors';
+            nameEl.className = 'text-sm font-bold text-white leading-tight group-hover:text-brand transition-colors truncate';
             nameEl.textContent = player.name;
             
             const metaEl = document.createElement('span');
-            metaEl.className = 'text-[10px] font-bold text-gray-500 uppercase tracking-wide mt-0.5';
+            metaEl.className = 'text-[10px] font-bold text-gray-500 uppercase tracking-wide mt-0.5 truncate';
             metaEl.textContent = `${player.position} • ${player.team}`;
 
             infoDiv.appendChild(nameEl);
@@ -618,7 +624,7 @@
             }
         }
         
-        // ... [Rest of Auth/Fetch logic is same as previous, abbreviated for length] ...
+        // ... [Rest of Auth/Fetch logic] ...
         async function checkAdminStatus() { const isAdmin = await checkIsAdmin(); if (isAdmin) uiElements.adminNavButton?.classList.remove('hidden'); }
         function updateAuthUI(loggedIn, email) { if(loggedIn) { uiElements.loginButton.classList.add('hidden'); uiElements.userProfileSection.classList.remove('hidden'); uiElements.userProfileSection.style.display='flex'; uiElements.userEmailDisplay.textContent=email; } }
         async function handleLogout() { showLoadingState(); clearAdminCache(); await supabaseClient.auth.signOut(); window.location.href="login.html"; }
@@ -663,7 +669,9 @@
             renderPlayerPool();
             renderRosterSlots();
             renderSubHeader();
-            triggerUpdateAllUI(); 
+            triggerUpdateAllUI();
+            // *** FIX: Initial Sub Header check ***
+            updateSubHeaderVisibility('nav-draft-team');
         }
 
         function triggerUpdateAllUI() {
@@ -825,7 +833,7 @@
         function showPromptModal() { document.getElementById('prompt-modal').classList.remove('hidden'); }
         function hidePromptModal() { document.getElementById('prompt-modal').classList.add('hidden'); }
         async function handleConfirmSubmission() {
-            // ... Same submission logic as before, abbreviated ...
+            // ... Same submission logic as before ...
             const nameInput = document.getElementById('prompt-modal-input');
             let teamName = nameInput.value.trim();
             if(!appState.editingTeamId && !teamName) { document.getElementById('prompt-modal-error').textContent='Name required'; document.getElementById('prompt-modal-error').classList.remove('hidden'); return; }
@@ -850,18 +858,32 @@
             triggerUpdateAllUI();
         }
         
-        // ... Render Scores/Standings (Same as before) ...
+        // ... Render Scores/Standings ...
         function handleNavLinkClick(event) {
             event.preventDefault();
             const href = event.currentTarget.getAttribute('href');
             if (href.includes('.html')) { window.location.href = href; return; }
-            if (href.startsWith('#')) {
-                const targetId = href.substring(1);
+            
+            const targetId = href.startsWith('#') ? href.substring(1) : '';
+            if (targetId) {
                 uiElements.navLinks.forEach(nav => nav.classList.remove('active'));
                 event.currentTarget.classList.add('active');
                 uiElements.tabContents.forEach(c => c.classList.toggle('active', c.id === targetId));
+                
+                // *** FIX: Update sub header visibility on click ***
+                updateSubHeaderVisibility(event.currentTarget.id);
             }
         }
+
+        // *** FIX: New Helper Function ***
+        function updateSubHeaderVisibility(activeLinkId) {
+            if (activeLinkId === 'nav-draft-team') {
+                uiElements.subHeader.classList.remove('sub-header-hidden');
+            } else {
+                uiElements.subHeader.classList.add('sub-header-hidden');
+            }
+        }
+
         function renderPlayerScoresTab() {
             const container = uiElements.playerScoresList; if(!container) return; container.innerHTML = '';
             ["QB", "RB", "WR", "TE", "DST", "K"].forEach(pos => {

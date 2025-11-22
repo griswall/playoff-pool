@@ -6,12 +6,8 @@
     <title>My Teams - Hurd NFL Playoff Pool</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <!-- 1. Import Supabase Library -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
-    <!-- Runtime Supabase configuration (replace values or set window.__SUPABASE_CONFIG__) -->
-    <script id="supabase-config" type="application/json">
-        {"url":"https://jlsudfmhsmxmxpdtkrzr.supabase.co","anonKey":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impsc3VkZm1oc214bXhwZHRrcnpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExNDQxNjEsImV4cCI6MjA3NjcyMDE2MX0.zJrz82WArsyFLybmGsxkOAr9HBoHrFhfa2pHwqvojxk"}
-    </script>
+    
     <style>
         :root {
             --accent: #00d084;
@@ -191,7 +187,6 @@
                         <a href="index.html#player-scores-view" id="nav-player-scores" class="nav-link">Player Scores</a>
                         <a href="index.html#standings-view" id="nav-standings" class="nav-link">Standings</a>
                         <a href="index.html#rules-view" id="nav-rules" class="nav-link">Rules</a>
-                        <!-- **** NEW: Hidden Admin Link **** -->
                         <a href="admin.html" id="nav-admin" class="nav-link admin-link hidden">Admin Panel</a>
                     </nav>
                     <div id="user-auth-section" class="flex items-center">
@@ -212,7 +207,6 @@
         <div class="content-section max-w-4xl mx-auto">
             <h2 class="text-2xl sm:text-3xl font-extrabold text-white mb-6">My Submitted Teams</h2>
             <div id="my-teams-container" class="space-y-4">
-                <!-- My Teams will be rendered here by JavaScript -->
                 <p id="no-teams-message" class="text-[var(--text-muted)]">You have not submitted any teams yet. <a href="index.html" class="text-[var(--accent)] hover:text-[var(--accent-hover)]">Go draft one!</a></p>
             </div>
         </div>
@@ -222,7 +216,6 @@
         <p class="text-[var(--text-muted)]">&copy; 2025 Hurd NFL Playoff Pool. All Rights Reserved.</p>
     </footer>
 
-    <!-- Confirmation Modal -->
     <div id="confirm-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="confirm-modal-title">
         <div class="modal-box">
             <h3 id="confirm-modal-title" class="text-2xl font-bold text-white mb-4">Are you sure?</h3>
@@ -239,15 +232,11 @@
     </div>
 
     <script type="module">
-        // **** UPDATED: Import checkIsAdmin AND clearAdminCache ****
         import { getSupabaseClient, checkIsAdmin, clearAdminCache } from './scripts/supabaseClient.js';
 
-        // =================================================================================
-        // --- SUPABASE & APP INITIALIZATION ---
-        // =================================================================================
         let supabaseClient;
         let currentUser;
-        let teamToDelete = null; // Store which team is pending deletion
+        let teamToDelete = null; 
 
         try {
             supabaseClient = getSupabaseClient();
@@ -256,9 +245,6 @@
             alert("Error: Could not connect to the database.");
         }
 
-        // =================================================================================
-        // --- DOM ELEMENT REFERENCES ---
-        // =================================================================================
         const uiElements = {
             loginButton: document.getElementById('login-button'),
             userProfileSection: document.getElementById('user-profile-section'),
@@ -272,13 +258,9 @@
             confirmModalMessage: document.getElementById('confirm-modal-message'),
             confirmModalConfirmBtn: document.getElementById('confirm-modal-confirm-btn'),
             confirmModalCancelBtn: document.getElementById('confirm-modal-cancel-btn'),
-            // **** NEW: Reference to admin link ****
             adminNavButton: document.getElementById('nav-admin')
         };
 
-        // =================================================================================
-        // --- APP INITIALIZATION ---
-        // =================================================================================
         document.addEventListener('DOMContentLoaded', () => {
             checkUser();
             setupEventListeners();
@@ -287,14 +269,13 @@
         function setupEventListeners() {
             uiElements.logoutButton?.addEventListener('click', handleLogout);
             
-            // Event delegation for team headers and delete buttons
             uiElements.myTeamsContainer?.addEventListener('click', (e) => {
                 const header = e.target.closest('.team-header');
                 const deleteButton = e.target.closest('.delete-team-btn');
                 const editButton = e.target.closest('.edit-team-btn');
 
                 if (deleteButton) {
-                    e.stopPropagation(); // Prevent header from collapsing
+                    e.stopPropagation(); 
                     const teamId = deleteButton.dataset.teamId;
                     const teamName = deleteButton.dataset.teamName;
                     showConfirmationModal(
@@ -306,9 +287,8 @@
                 }
                 
                 if (editButton) {
-                    e.stopPropagation(); // Prevent header from collapsing
+                    e.stopPropagation(); 
                     const teamId = editButton.dataset.teamId;
-                    // Redirect to index.html with the team_id as a URL parameter
                     window.location.href = `index.html?edit_team_id=${teamId}`;
                     return;
                 }
@@ -318,17 +298,12 @@
                 }
             });
 
-            // Confirmation modal listeners
             uiElements.confirmModalCancelBtn?.addEventListener('click', hideConfirmationModal);
             uiElements.confirmModalConfirmBtn?.addEventListener('click', handleConfirmDelete);
             uiElements.confirmModal?.addEventListener('click', (e) => {
                 if (e.target === uiElements.confirmModal) hideConfirmationModal();
             });
         }
-
-        // =================================================================================
-        // --- AUTHENTICATION & DATA FETCHING ---
-        // =================================================================================
 
         async function checkUser() {
             showLoading(true);
@@ -340,12 +315,11 @@
 
             const { data, error } = await supabaseClient.auth.getSession();
             if (error || !data.session) {
-                window.location.href = "login.html"; // Redirect if no session
+                window.location.href = "login.html"; 
             } else {
                 currentUser = data.session.user;
                 updateAuthUI(true, currentUser.email);
 
-                // **** NEW: Check for admin status ****
                 checkAdminStatus();
 
                 await fetchMyTeams();
@@ -353,9 +327,8 @@
             }
         }
 
-        // **** NEW: Function to check and show admin link ****
         async function checkAdminStatus() {
-            const isAdmin = await checkIsAdmin(); // Uses the function from supabaseClient.js
+            const isAdmin = await checkIsAdmin(); 
             if (isAdmin) {
                 uiElements.adminNavButton?.classList.remove('hidden');
             }
@@ -376,7 +349,6 @@
         async function handleLogout() {
             showLoading(true);
             
-            // **** NEW: Clear the admin cache on logout ****
             clearAdminCache();
 
             await supabaseClient.auth.signOut();
@@ -386,10 +358,6 @@
         async function fetchMyTeams() {
             if (!currentUser) return;
 
-            // This is one advanced query!
-            // 1. It finds all teams matching the current user's ID.
-            // 2. It joins with 'team_players' to find all players on those teams.
-            // 3. It joins with 'players' to get the name, salary, etc. for each of those players.
             const { data, error } = await supabaseClient
                 .from('user_teams')
                 .select(`
@@ -430,12 +398,8 @@
             }
         }
 
-        // =================================================================================
-        // --- CORE TEAM LOGIC ---
-        // =================================================================================
-
         function showConfirmationModal(title, message, teamId) {
-            teamToDelete = teamId; // Store the ID of the team to be deleted
+            teamToDelete = teamId; 
             uiElements.confirmModalTitle.textContent = title;
             uiElements.confirmModalMessage.textContent = message;
             uiElements.confirmModal.classList.add('active');
@@ -443,7 +407,7 @@
         }
 
         function hideConfirmationModal() {
-            teamToDelete = null; // Clear the stored ID
+            teamToDelete = null; 
             uiElements.confirmModal.classList.remove('active');
         }
 
@@ -451,25 +415,21 @@
             if (!teamToDelete) return;
             
             showLoading(true);
-            const teamId = teamToDelete; // Get the stored ID
+            const teamId = teamToDelete; 
             hideConfirmationModal();
 
-            // RLS in Supabase ensures users can only delete their own teams.
-            // The 'team_players' are set to cascade delete.
             const { error } = await supabaseClient
                 .from('user_teams')
                 .delete()
-                .eq('id', teamId); // Use the stored teamId
+                .eq('id', teamId); 
 
             if (error) {
                 console.error("Error deleting team:", error.message);
                 alert("Error: Could not delete team. " + error.message);
             } else {
-                // Remove the team from the UI immediately for a faster feel
                 const teamElement = document.querySelector(`[data-team-id="${teamId}"]`);
                 teamElement?.remove();
                 
-                // Check if any teams are left
                 const remainingTeams = uiElements.myTeamsContainer.querySelector('.team-container');
                 if (!remainingTeams) {
                     uiElements.noTeamsMessage.style.display = 'block';
@@ -478,10 +438,6 @@
             
             showLoading(false);
         }
-
-        // =================================================================================
-        // --- UI RENDERING ---
-        // =================================================================================
 
         function renderTeams(teams) {
             if (!uiElements.myTeamsContainer) return;
@@ -622,4 +578,3 @@
     </script>
 </body>
 </html>
-

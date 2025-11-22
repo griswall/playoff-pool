@@ -5,230 +5,177 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Teams - Hurd NFL Playoff Pool</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        brand: {
+                            DEFAULT: '#00d084',
+                            dark: '#00a366',
+                            glow: 'rgba(0, 208, 132, 0.5)'
+                        },
+                        surface: {
+                            100: '#1e293b',
+                            200: '#334155',
+                            300: '#475569',
+                            800: '#0f172a',
+                            900: '#020617',
+                        }
+                    },
+                    backgroundImage: {
+                        'main-gradient': 'radial-gradient(circle at 50% 0%, #1e293b 0%, #020617 80%)',
+                    }
+                }
+            }
+        }
+    </script>
+
     <style>
         :root {
-            --accent: #00d084;
-            --accent-hover: #00b371;
-            --bg-deep: #0f1115;
-            --bg-medium: #1c1e24;
-            --bg-light: #292d36;
-            --text-primary: #e5e7eb;
-            --text-muted: #9ca3af;
-            --error: #ef4444;
-            --yellow: #facc15;
+            --card-border: rgba(255, 255, 255, 0.08);
         }
+        
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--bg-deep);
-            color: var(--text-primary);
+            background: #020617;
+            background-image: radial-gradient(circle at 50% -20%, #1e293b 0%, #020617 60%);
+            background-attachment: fixed;
+            color: #f8fafc;
+            min-height: 100vh;
         }
-        .main-header {
-            background-color: var(--bg-medium);
-            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-            border-bottom: 1px solid var(--bg-light);
+
+        /* Glassmorphism */
+        .glass-header {
+            background: rgba(2, 6, 23, 0.95);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
         }
-        .nav-link {
-            padding: 0.5rem 1rem;
-            border-radius: 0.5rem;
-            font-weight: 600;
-            font-size: 0.875rem;
-            transition: all 0.2s;
-            color: var(--text-muted);
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--card-border);
         }
-        .nav-link.active {
-            background: var(--accent);
-            color: #000;
-            box-shadow: 0 0 0 3px rgba(0, 208, 132, 0.3);
-        }
-        .nav-link:hover:not(.active) {
-            background: var(--bg-light);
-            color: white;
-        }
-        /* Style for the new admin link */
-        .nav-link.admin-link {
-            color: var(--yellow);
-            border: 1px solid var(--yellow);
-        }
-        .nav-link.admin-link:hover {
-            background-color: var(--yellow);
-            color: #000;
-            border-color: var(--yellow);
-        }
-        .content-section {
-            background-color: var(--bg-medium);
-            border: 1px solid var(--bg-light);
-            padding: 1.5rem;
-            border-radius: 0.75rem;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-        }
-        .team-header {
-            background-color: var(--bg-light);
-            padding: 1rem 1.5rem;
-            border-radius: 0.5rem;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-        .team-header:hover {
-            background-color: #3a404d;
-        }
+
+        /* Interactive Nav Links */
+        .nav-link { color: #94a3b8; transition: all 0.3s ease; }
+        .nav-link:hover { color: white; }
+        
+        /* Accordion Animation */
         .team-body {
-            max-height: 5000px;
+            max-height: 2000px; /* Arbitrary large height */
+            opacity: 1;
+            transform: translateY(0);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             overflow: hidden;
-            transition: max-height 0.5s ease-in-out, padding 0.5s ease-in-out, border 0.5s ease-in-out;
-            padding: 1.5rem;
-            background-color: var(--bg-medium);
-            border: 1px solid var(--bg-light);
-            border-top: 0;
-            border-radius: 0 0 0.5rem 0.5rem;
         }
         .team-collapsed .team-body {
             max-height: 0;
-            padding-top: 0;
-            padding-bottom: 0;
-            overflow: hidden;
-            border-width: 0;
-        }
-        .collapse-icon {
-            transition: transform 0.3s ease;
-        }
-        .team-collapsed .collapse-icon {
-            transform: rotate(-90deg);
-        }
-        .loading-overlay {
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background-color: rgba(0, 0, 0, 0.5);
-            z-index: 2000;
-            display: none;
-            align-items: center;
-            justify-content: center;
-        }
-        .loading-overlay.active { display: flex; }
-        .loading-spinner {
-            border: 4px solid var(--bg-light);
-            border-top: 4px solid var(--accent);
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: rgba(0, 0, 0, 0.75);
-            z-index: 1000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
             opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.3s ease, visibility 0.3s ease;
+            transform: translateY(-10px);
         }
-        .modal-overlay.active {
-            opacity: 1;
-            visibility: visible;
+        .collapse-icon { transition: transform 0.3s ease; }
+        .team-collapsed .collapse-icon { transform: rotate(-90deg); }
+
+        /* Modal */
+        .modal-overlay {
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(4px);
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
         }
-        .modal-box {
-            background-color: var(--bg-medium);
-            color: var(--text-primary);
-            padding: 2rem;
-            border-radius: 0.75rem;
-            border: 1px solid var(--bg-light);
-            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-            width: 90%;
-            max-width: 450px;
-            transform: scale(0.95);
-            transition: transform 0.3s ease;
-        }
-        .modal-overlay.active .modal-box {
-            transform: scale(1);
-        }
-        .prompt-button {
-            padding: 0.6rem 1.5rem;
-            border-radius: 0.5rem;
-            font-weight: 600;
-            transition: background-color 0.2s ease;
-        }
-        .prompt-confirm {
-            background-color: var(--error);
-            color: #fff;
-        }
-        .prompt-confirm:hover {
-            background-color: #c53030;
-        }
-        .prompt-cancel {
-            background-color: var(--bg-light);
-            color: var(--text-primary);
-        }
-        .prompt-cancel:hover {
-            background-color: var(--bg-deep);
-        }
+        .modal-overlay.active { opacity: 1; pointer-events: auto; }
+
+        /* Loading */
+        .loading-overlay { background: rgba(2, 6, 23, 0.9); z-index: 9999; }
     </style>
 </head>
-<body class="min-h-screen">
+<body class="antialiased selection:bg-brand selection:text-black">
 
-    <header class="main-header sticky top-0 z-30">
+    <header class="glass-header sticky top-0 z-40 transition-all duration-300">
         <div class="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex items-center justify-between h-20">
-                <h1 class="text-3xl font-extrabold text-white tracking-tight">Hurd NFL Playoff Pool</h1>
-                <div class="flex items-center space-x-6">
-                    <nav class="flex space-x-1 sm:space-x-2">
-                        <a href="index.html" id="nav-draft-team" class="nav-link">Draft Team</a>
-                        <a href="index.html#player-scores-view" id="nav-player-scores" class="nav-link">Player Scores</a>
-                        <a href="index.html#standings-view" id="nav-standings" class="nav-link">Standings</a>
-                        <a href="index.html#rules-view" id="nav-rules" class="nav-link">Rules</a>
-                        <a href="admin.html" id="nav-admin" class="nav-link admin-link hidden">Admin Panel</a>
-                    </nav>
-                    <div id="user-auth-section" class="flex items-center">
-                        <a href="login.html" id="login-button" class="nav-link bg-[var(--accent)] text-black font-semibold hidden">Login / Sign Up</a>
-                        <div id="user-profile-section" class="hidden items-center space-x-4">
-                            <a href="my-teams.html" id="user-email-link" class="text-sm text-[var(--accent)] hover:text-[var(--accent-hover)] font-semibold transition-colors">
-                                <span id="user-email-display">user@example.com</span>
-                            </a>
-                            <button id="logout-button" class="text-sm font-semibold text-gray-400 hover:text-white transition-colors">Logout</button>
-                        </div>
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded bg-gradient-to-br from-brand to-brand-dark flex items-center justify-center shadow-[0_0_15px_var(--accent-glow)]">
+                        <svg class="w-5 h-5 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
                     </div>
+                    <h1 class="text-lg font-black tracking-tight text-white uppercase italic">
+                        Hurd <span class="text-brand">Pool</span>
+                    </h1>
+                </div>
+
+                <div class="hidden md:flex items-center gap-6">
+                    <nav class="flex space-x-6">
+                        <a href="index.html" class="nav-link text-xs font-bold uppercase tracking-widest hover:text-brand">Draft</a>
+                        <a href="index.html#player-scores-view" class="nav-link text-xs font-bold uppercase tracking-widest">Scores</a>
+                        <a href="index.html#standings-view" class="nav-link text-xs font-bold uppercase tracking-widest">Standings</a>
+                        <a href="admin.html" id="nav-admin" class="hidden text-yellow-400 text-xs font-bold uppercase border border-yellow-400 rounded-full px-3 py-1 hover:bg-yellow-400/10">Admin</a>
+                    </nav>
+                    
+                    <div id="user-auth-section" class="flex items-center">
+                        <div id="user-profile-section" class="hidden items-center gap-4">
+                            <span id="user-email-display" class="text-xs font-bold text-gray-400 uppercase hidden lg:inline"></span>
+                            <button id="logout-button" class="text-xs font-bold text-gray-500 hover:text-white transition-colors uppercase">Logout</button>
+                        </div>
+                        <a href="login.html" id="login-button" class="bg-white text-black hover:bg-gray-200 px-4 py-1.5 rounded text-xs font-bold transition-colors uppercase">Sign In</a>
+                    </div>
+                </div>
+                
+                <div class="md:hidden">
+                     <a href="index.html" class="text-xs font-bold text-brand uppercase border border-brand/30 px-3 py-1.5 rounded">Back to Draft</a>
                 </div>
             </div>
         </div>
     </header>
 
-    <main class="container mx-auto p-4 sm:p-6 lg:p-8">
-        <div class="content-section max-w-4xl mx-auto">
-            <h2 class="text-2xl sm:text-3xl font-extrabold text-white mb-6">My Submitted Teams</h2>
+    <main class="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="max-w-4xl mx-auto">
+            <div class="flex justify-between items-end mb-6">
+                <h2 class="text-2xl md:text-3xl font-black text-white uppercase italic tracking-tight">My <span class="text-brand">Teams</span></h2>
+                <a href="index.html" class="hidden md:inline-flex items-center gap-2 text-sm font-bold text-brand hover:text-white transition-colors">
+                    <span>+ Draft New Team</span>
+                </a>
+            </div>
+            
             <div id="my-teams-container" class="space-y-4">
-                <p id="no-teams-message" class="text-[var(--text-muted)]">You have not submitted any teams yet. <a href="index.html" class="text-[var(--accent)] hover:text-[var(--accent-hover)]">Go draft one!</a></p>
+                </div>
+            
+            <div id="no-teams-message" class="hidden glass-panel p-12 rounded-xl text-center">
+                <div class="w-16 h-16 bg-surface-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-8 h-8 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                </div>
+                <h3 class="text-xl font-bold text-white mb-2">No Teams Yet</h3>
+                <p class="text-gray-400 mb-6">You haven't submitted any rosters for the playoffs yet.</p>
+                <a href="index.html" class="bg-brand hover:bg-brand-dark text-black px-6 py-3 rounded-lg font-bold uppercase tracking-wide inline-block shadow-lg shadow-brand/20">Draft a Team</a>
             </div>
         </div>
     </main>
 
-    <footer class="text-center py-8 mt-12 border-t border-[var(--bg-light)]">
-        <p class="text-[var(--text-muted)]">&copy; 2025 Hurd NFL Playoff Pool. All Rights Reserved.</p>
+    <footer class="text-center py-12 border-t border-white/5 mt-12">
+        <p class="text-gray-600 text-sm font-medium">&copy; 2025 Hurd NFL Playoff Pool.</p>
     </footer>
 
-    <div id="confirm-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="confirm-modal-title">
-        <div class="modal-box">
-            <h3 id="confirm-modal-title" class="text-2xl font-bold text-white mb-4">Are you sure?</h3>
-            <p id="confirm-modal-message" class="text-gray-300 mb-6">This action cannot be undone.</p>
-            <div class="flex justify-end space-x-3">
-                <button id="confirm-modal-cancel-btn" class="prompt-button prompt-cancel">Cancel</button>
-                <button id="confirm-modal-confirm-btn" class="prompt-button prompt-confirm">Delete Team</button>
+    <div id="confirm-modal" class="modal-overlay fixed inset-0 flex items-center justify-center p-4">
+        <div class="bg-surface-800 border border-white/10 rounded-xl p-6 max-w-sm w-full shadow-2xl transform scale-100 transition-all">
+            <h3 id="confirm-modal-title" class="text-xl font-black text-white mb-2 italic uppercase">Delete Team?</h3>
+            <p id="confirm-modal-message" class="text-gray-400 mb-6 text-sm">This action cannot be undone.</p>
+            <div class="flex justify-end gap-3">
+                <button id="confirm-modal-cancel-btn" class="px-4 py-2 rounded-lg font-bold text-gray-400 hover:text-white text-sm">Cancel</button>
+                <button id="confirm-modal-confirm-btn" class="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg font-bold text-sm shadow-lg shadow-red-500/20">Delete</button>
             </div>
         </div>
     </div>
 
-    <div id="loading-overlay" class="loading-overlay" role="status" aria-live="polite">
-        <div class="loading-spinner" aria-label="Loading"></div>
+    <div id="loading-overlay" class="loading-overlay fixed inset-0 flex flex-col items-center justify-center gap-4 hidden">
+        <div class="w-10 h-10 border-4 border-surface-700 border-t-brand rounded-full animate-spin"></div>
     </div>
 
     <script type="module">
@@ -238,12 +185,7 @@
         let currentUser;
         let teamToDelete = null; 
 
-        try {
-            supabaseClient = getSupabaseClient();
-        } catch (e) {
-            console.error("Error initializing Supabase.", e.message);
-            alert("Error: Could not connect to the database.");
-        }
+        try { supabaseClient = getSupabaseClient(); } catch (e) { console.error(e); }
 
         const uiElements = {
             loginButton: document.getElementById('login-button'),
@@ -270,29 +212,27 @@
             uiElements.logoutButton?.addEventListener('click', handleLogout);
             
             uiElements.myTeamsContainer?.addEventListener('click', (e) => {
-                const header = e.target.closest('.team-header');
-                const deleteButton = e.target.closest('.delete-team-btn');
-                const editButton = e.target.closest('.edit-team-btn');
-
-                if (deleteButton) {
-                    e.stopPropagation(); 
-                    const teamId = deleteButton.dataset.teamId;
-                    const teamName = deleteButton.dataset.teamName;
-                    showConfirmationModal(
-                        `Delete "${teamName}"?`,
-                        "Are you sure you want to delete this team? This action cannot be undone.",
-                        teamId
-                    );
+                // Handle button clicks (Edit/Delete)
+                const deleteBtn = e.target.closest('.delete-team-btn');
+                const editBtn = e.target.closest('.edit-team-btn');
+                
+                if (deleteBtn) {
+                    e.stopPropagation();
+                    const teamId = deleteBtn.dataset.teamId;
+                    const teamName = deleteBtn.dataset.teamName;
+                    showConfirmationModal(`Delete "${teamName}"?`, "This will permanently remove this entry from the pool.", teamId);
                     return;
                 }
                 
-                if (editButton) {
-                    e.stopPropagation(); 
-                    const teamId = editButton.dataset.teamId;
+                if (editBtn) {
+                    e.stopPropagation();
+                    const teamId = editBtn.dataset.teamId;
                     window.location.href = `index.html?edit_team_id=${teamId}`;
                     return;
                 }
 
+                // Handle Expand/Collapse (clicking the header)
+                const header = e.target.closest('.team-header');
                 if (header) {
                     header.parentElement.classList.toggle('team-collapsed');
                 }
@@ -307,11 +247,7 @@
 
         async function checkUser() {
             showLoading(true);
-            if (!supabaseClient) {
-                alert("Database connection error. Please refresh.");
-                showLoading(false);
-                return;
-            }
+            if (!supabaseClient) { alert("Connection error."); showLoading(false); return; }
 
             const { data, error } = await supabaseClient.auth.getSession();
             if (error || !data.session) {
@@ -319,9 +255,7 @@
             } else {
                 currentUser = data.session.user;
                 updateAuthUI(true, currentUser.email);
-
                 checkAdminStatus();
-
                 await fetchMyTeams();
                 showLoading(false);
             }
@@ -329,28 +263,21 @@
 
         async function checkAdminStatus() {
             const isAdmin = await checkIsAdmin(); 
-            if (isAdmin) {
-                uiElements.adminNavButton?.classList.remove('hidden');
-            }
+            if (isAdmin) uiElements.adminNavButton?.classList.remove('hidden');
         }
 
         function updateAuthUI(loggedIn, email = '') {
             if (loggedIn) {
                 uiElements.loginButton?.classList.add('hidden');
                 uiElements.userProfileSection?.classList.remove('hidden');
+                uiElements.userProfileSection.style.display = 'flex';
                 if (uiElements.userEmailDisplay) uiElements.userEmailDisplay.textContent = email;
-            } else {
-                uiElements.loginButton?.classList.remove('hidden');
-                uiElements.userProfileSection?.classList.add('hidden');
-                if (uiElements.userEmailDisplay) uiElements.userEmailDisplay.textContent = '';
             }
         }
 
         async function handleLogout() {
             showLoading(true);
-            
             clearAdminCache();
-
             await supabaseClient.auth.signOut();
             window.location.href = "login.html";
         }
@@ -360,50 +287,112 @@
 
             const { data, error } = await supabaseClient
                 .from('user_teams')
-                .select(`
-                    id,
-                    team_name,
-                    created_at,
-                    team_players (
-                        roster_slot,
-                        players (
-                            id,
-                            name,
-                            team,
-                            position,
-                            salary
-                        )
-                    )
-                `)
+                .select(`id, team_name, created_at, team_players (roster_slot, players (id, name, team, position, salary))`)
                 .order('roster_slot', { ascending: true, foreignTable: 'team_players' })
                 .eq('user_id', currentUser.id)
                 .order('created_at', { ascending: true });
 
             if (error) {
-                console.error("Error fetching teams:", error.message);
-                if (uiElements.myTeamsContainer) {
-                    const errorMessage = document.createElement('p');
-                    errorMessage.className = 'text-[var(--error)]';
-                    errorMessage.textContent = 'Error loading your teams.';
-                    uiElements.myTeamsContainer.replaceChildren(errorMessage);
-                }
+                console.error(error);
                 return;
             }
 
             if (data && data.length > 0) {
-                uiElements.noTeamsMessage.style.display = 'none';
+                uiElements.noTeamsMessage.classList.add('hidden');
                 renderTeams(data);
             } else {
-                uiElements.noTeamsMessage.style.display = 'block';
+                uiElements.noTeamsMessage.classList.remove('hidden');
             }
+        }
+
+        function renderTeams(teams) {
+            if (!uiElements.myTeamsContainer) return;
+            uiElements.myTeamsContainer.innerHTML = '';
+            
+            teams.forEach((team, index) => {
+                const teamWrapper = document.createElement('div');
+                // New styling: Glass accordion
+                teamWrapper.className = 'glass-panel rounded-xl overflow-hidden transition-all duration-300';
+                if (index !== 0) teamWrapper.classList.add('team-collapsed'); // Expand first, collapse rest
+                teamWrapper.dataset.teamId = String(team.id);
+
+                const safeTeamName = team.team_name ?? 'Unnamed Team';
+                const createdDate = team.created_at ? new Date(team.created_at).toLocaleDateString() : '';
+                
+                // Calculate total salary
+                let totalSalary = 0;
+                const sortedPlayers = Array.isArray(team.team_players)
+                    ? [...team.team_players].sort((a, b) => {
+                        // Custom sort order logic if needed, otherwise alphabetical by slot?
+                        // Actually standard roster order is nice
+                        const order = ["QB", "RB1", "RB2", "RB3", "WR1", "WR2", "WR3", "FLEX", "DST", "K"];
+                        return order.indexOf(a.roster_slot) - order.indexOf(b.roster_slot);
+                    })
+                    : [];
+                
+                sortedPlayers.forEach(tp => { if(tp.players?.salary) totalSalary += tp.players.salary; });
+
+                // HEADER
+                const header = document.createElement('div');
+                header.className = 'team-header p-4 bg-surface-800/80 hover:bg-surface-800 cursor-pointer flex justify-between items-center border-b border-white/5 select-none';
+                header.innerHTML = `
+                    <div class="flex flex-col gap-1">
+                        <div class="flex items-center gap-3">
+                            <h3 class="text-lg font-bold text-white leading-none">${safeTeamName}</h3>
+                            <span class="text-[10px] font-bold text-gray-500 uppercase bg-surface-900 px-2 py-0.5 rounded border border-white/5">${createdDate}</span>
+                        </div>
+                        <div class="flex items-center gap-2 text-xs font-mono text-gray-400">
+                            <span>SALARY:</span>
+                            <span class="text-brand font-bold">${formatToMillions(totalSalary)}</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <button class="edit-team-btn text-xs font-bold text-brand uppercase hover:text-white border border-brand/30 hover:bg-brand hover:border-brand hover:text-black px-3 py-1.5 rounded transition-all" 
+                                data-team-id="${team.id}">Edit</button>
+                        <button class="delete-team-btn text-gray-500 hover:text-red-500 transition-colors p-1" 
+                                data-team-id="${team.id}" data-team-name="${safeTeamName}" title="Delete Team">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        </button>
+                        <svg class="collapse-icon w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </div>
+                `;
+
+                // BODY (Player List)
+                const body = document.createElement('div');
+                body.className = 'team-body bg-surface-900/50';
+                
+                const list = document.createElement('div');
+                list.className = 'divide-y divide-white/5';
+
+                sortedPlayers.forEach(tp => {
+                    const p = tp.players || {};
+                    const row = document.createElement('div');
+                    row.className = 'flex justify-between items-center px-4 py-3 hover:bg-white/5 transition-colors';
+                    row.innerHTML = `
+                        <div class="flex items-center gap-3">
+                            <span class="text-[10px] font-bold text-gray-500 w-8 uppercase">${tp.roster_slot.replace(/\d/g, '')}</span>
+                            <div>
+                                <div class="text-sm font-bold text-white">${p.name || 'Unknown'}</div>
+                                <div class="text-[10px] font-bold text-gray-500 uppercase">${p.position} • ${p.team}</div>
+                            </div>
+                        </div>
+                        <div class="text-xs font-mono text-gray-400">${formatToMillions(p.salary)}</div>
+                    `;
+                    list.appendChild(row);
+                });
+
+                body.appendChild(list);
+                teamWrapper.appendChild(header);
+                teamWrapper.appendChild(body);
+                uiElements.myTeamsContainer.appendChild(teamWrapper);
+            });
         }
 
         function showConfirmationModal(title, message, teamId) {
             teamToDelete = teamId; 
-            uiElements.confirmModalTitle.textContent = title;
-            uiElements.confirmModalMessage.textContent = message;
+            document.getElementById('confirm-modal-title').textContent = title;
+            document.getElementById('confirm-modal-message').textContent = message;
             uiElements.confirmModal.classList.add('active');
-            uiElements.confirmModalConfirmBtn.focus();
         }
 
         function hideConfirmationModal() {
@@ -413,167 +402,32 @@
 
         async function handleConfirmDelete() {
             if (!teamToDelete) return;
-            
             showLoading(true);
             const teamId = teamToDelete; 
             hideConfirmationModal();
 
-            const { error } = await supabaseClient
-                .from('user_teams')
-                .delete()
-                .eq('id', teamId); 
+            const { error } = await supabaseClient.from('user_teams').delete().eq('id', teamId); 
 
             if (error) {
-                console.error("Error deleting team:", error.message);
-                alert("Error: Could not delete team. " + error.message);
+                alert("Error: " + error.message);
             } else {
                 const teamElement = document.querySelector(`[data-team-id="${teamId}"]`);
                 teamElement?.remove();
                 
-                const remainingTeams = uiElements.myTeamsContainer.querySelector('.team-container');
-                if (!remainingTeams) {
-                    uiElements.noTeamsMessage.style.display = 'block';
+                if (!uiElements.myTeamsContainer.hasChildNodes()) {
+                    uiElements.noTeamsMessage.classList.remove('hidden');
                 }
             }
-            
             showLoading(false);
-        }
-
-        function renderTeams(teams) {
-            if (!uiElements.myTeamsContainer) return;
-            uiElements.myTeamsContainer.replaceChildren();
-            const fragment = document.createDocumentFragment();
-
-            teams.forEach((team, index) => {
-                const teamWrapper = document.createElement('div');
-                teamWrapper.className = 'team-container';
-                if (index !== 0) teamWrapper.classList.add('team-collapsed');
-                if (typeof team.id !== 'undefined') {
-                    teamWrapper.dataset.teamId = String(team.id);
-                }
-
-                const safeTeamName = team.team_name ?? 'Unnamed Team';
-                const header = document.createElement('div');
-                header.className = 'team-header flex justify-between items-center';
-
-                const headerInfo = document.createElement('div');
-                const title = document.createElement('h3');
-                title.className = 'text-xl font-bold';
-                title.textContent = safeTeamName;
-
-                const submittedMeta = document.createElement('p');
-                submittedMeta.className = 'text-sm text-[var(--text-muted)]';
-                const submittedDate = team.created_at ? new Date(team.created_at).toLocaleString() : 'Unknown';
-                submittedMeta.appendChild(document.createTextNode(`Submitted: ${submittedDate} | Total Salary: `));
-                const totalSalaryValue = document.createElement('span');
-                totalSalaryValue.className = 'text-[var(--yellow)]';
-                totalSalaryValue.textContent = formatToMillions(0);
-                submittedMeta.appendChild(totalSalaryValue);
-
-                headerInfo.appendChild(title);
-                headerInfo.appendChild(submittedMeta);
-
-                const headerActions = document.createElement('div');
-                headerActions.className = 'flex items-center space-x-2';
-
-                const editButton = document.createElement('button');
-                editButton.className = 'edit-team-btn text-sm font-semibold text-[var(--accent)] hover:text-[var(--accent-hover)] transition-colors p-2';
-                editButton.textContent = 'Edit';
-                if (typeof team.id !== 'undefined') {
-                    editButton.dataset.teamId = String(team.id);
-                }
-                editButton.setAttribute('aria-label', `Edit team ${safeTeamName}`);
-
-                const deleteButton = document.createElement('button');
-                deleteButton.className = 'delete-team-btn text-sm font-semibold text-[var(--error)] hover:text-red-400 transition-colors p-2';
-                deleteButton.textContent = 'Delete';
-                if (typeof team.id !== 'undefined') {
-                    deleteButton.dataset.teamId = String(team.id);
-                }
-                deleteButton.dataset.teamName = safeTeamName;
-                deleteButton.setAttribute('aria-label', `Delete team ${safeTeamName}`);
-
-                const collapseIcon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-                collapseIcon.setAttribute('class', 'collapse-icon w-6 h-6 text-gray-400');
-                collapseIcon.setAttribute('fill', 'none');
-                collapseIcon.setAttribute('stroke', 'currentColor');
-                collapseIcon.setAttribute('viewBox', '0 0 24 24');
-                const collapsePath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                collapsePath.setAttribute('stroke-linecap', 'round');
-                collapsePath.setAttribute('stroke-linejoin', 'round');
-                collapsePath.setAttribute('stroke-width', '2');
-                collapsePath.setAttribute('d', 'M19 9l-7 7-7-7');
-                collapseIcon.appendChild(collapsePath);
-
-                headerActions.appendChild(editButton);
-                headerActions.appendChild(deleteButton);
-                headerActions.appendChild(collapseIcon);
-
-                header.appendChild(headerInfo);
-                header.appendChild(headerActions);
-
-                const body = document.createElement('div');
-                body.className = 'team-body';
-                const playerList = document.createElement('ul');
-                playerList.className = 'space-y-2';
-
-                let totalSalary = 0;
-                const sortedPlayers = Array.isArray(team.team_players)
-                    ? [...team.team_players].sort((a, b) => (a.roster_slot > b.roster_slot ? 1 : -1))
-                    : [];
-
-                sortedPlayers.forEach(tp => {
-                    const player = tp?.players;
-                    if (!player) return;
-
-                    if (typeof player.salary === 'number' && !Number.isNaN(player.salary)) {
-                        totalSalary += player.salary;
-                    }
-
-                    const playerItem = document.createElement('li');
-                    playerItem.className = 'flex justify-between items-center p-2 bg-[var(--bg-light)] rounded';
-
-                    const playerSummary = document.createElement('span');
-                    playerSummary.className = 'font-semibold';
-                    const rosterSlot = tp?.roster_slot ?? 'Slot';
-                    playerSummary.textContent = `${rosterSlot}: ${player.name ?? 'Unknown Player'}`;
-
-                    const playerMeta = document.createElement('span');
-                    playerMeta.className = 'text-sm text-[var(--text-muted)]';
-                    const teamName = player.team ?? 'N/A';
-                    const position = player.position ?? 'N/A';
-                    playerMeta.appendChild(document.createTextNode(`${position} - ${teamName} | `));
-
-                    const salarySpan = document.createElement('span');
-                    salarySpan.className = 'text-[var(--yellow)]';
-                    salarySpan.textContent = formatToMillions(player.salary);
-                    playerMeta.appendChild(salarySpan);
-
-                    playerItem.appendChild(playerSummary);
-                    playerItem.appendChild(playerMeta);
-                    playerList.appendChild(playerItem);
-                });
-
-                totalSalaryValue.textContent = formatToMillions(totalSalary);
-
-                body.appendChild(playerList);
-
-                teamWrapper.appendChild(header);
-                teamWrapper.appendChild(body);
-                fragment.appendChild(teamWrapper);
-            });
-
-            uiElements.myTeamsContainer.appendChild(fragment);
         }
         
         function showLoading(isLoading) {
-            uiElements.loadingOverlay?.classList.toggle('active', isLoading);
+            if(uiElements.loadingOverlay) uiElements.loadingOverlay.classList.toggle('hidden', !isLoading);
         }
 
         function formatToMillions(value) {
             if (typeof value !== 'number' || isNaN(value)) return '$0.0M';
-            const millions = value / 1000000;
-            return `$${millions.toFixed(1)}M`;
+            return `$${(value / 1000000).toFixed(1)}M`;
         }
     </script>
 </body>

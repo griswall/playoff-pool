@@ -5,159 +5,163 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin - Hurd NFL Playoff Pool</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        brand: {
+                            DEFAULT: '#00d084',
+                            dark: '#00a366',
+                            glow: 'rgba(0, 208, 132, 0.5)'
+                        },
+                        surface: {
+                            100: '#1e293b',
+                            200: '#334155',
+                            300: '#475569',
+                            800: '#0f172a',
+                            900: '#020617',
+                        }
+                    },
+                    backgroundImage: {
+                        'main-gradient': 'radial-gradient(circle at 50% 0%, #1e293b 0%, #020617 80%)',
+                    }
+                }
+            }
+        }
+    </script>
+
     <style>
         :root {
-            --accent: #00d084;
-            --accent-hover: #00b371;
-            --bg-deep: #0f1115;
-            --bg-medium: #1c1e24;
-            --bg-light: #292d36;
-            --text-primary: #e5e7eb;
-            --text-muted: #9ca3af;
-            --error: #ef4444;
-            --yellow: #facc15;
+            --card-border: rgba(255, 255, 255, 0.08);
         }
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--bg-deep);
-            color: var(--text-primary);
-        }
-        .main-header {
-            background-color: var(--bg-medium);
-            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-            border-bottom: 1px solid var(--bg-light);
-        }
-        .content-section {
-            background-color: var(--bg-medium);
-            border: 1px solid var(--bg-light);
-            padding: 1.5rem;
-            border-radius: 0.75rem;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-        }
-        .form-input {
-            background-color: var(--bg-deep);
-            border: 1px solid var(--bg-light);
-            color: var(--text-primary);
-            border-radius: 0.375rem;
-            width: 70px;
-            padding: 0.5rem 0.75rem;
-            text-align: center;
-        }
-        /* Remove arrows from number-like text inputs */
-        input[type="text"] {
-            -moz-appearance: textfield;
-        }
-        input[type="text"]::-webkit-outer-spin-button,
-        input[type="text"]::-webkit-inner-spin-button {
-            -webkit-appearance: none;
-            margin: 0;
-        }
-        .form-input:focus {
-            outline: none;
-            border-color: var(--accent);
-            box-shadow: 0 0 0 3px rgba(0, 208, 132, 0.3);
-        }
-        .admin-table { width: 100%; border-collapse: separate; border-spacing: 0; }
-        .admin-table th, .admin-table td {
-            padding: 0.75rem 1rem;
-            text-align: left;
-            border-bottom: 1px solid var(--bg-light); 
-        }
-        .admin-table th {
-            background-color: var(--bg-light);
-            font-weight: 700;
-            color: var(--text-primary);
-            text-transform: uppercase;
-            font-size: 0.8rem;
-            letter-spacing: 0.05em;
-        }
-        .admin-table tbody tr:hover { background-color: var(--bg-light); }
-        .sticky-header { position: sticky; top: 0; z-index: 10; }
         
-        .save-button {
-            background-color: var(--accent);
-            color: #000;
-            font-weight: 700;
-            transition: background-color 0.2s;
-            border-radius: 0.5rem;
-            padding: 0.75rem 2rem;
-            font-size: 1.1rem;
+        body {
+            background: #020617;
+            background-image: radial-gradient(circle at 50% -20%, #1e293b 0%, #020617 60%);
+            background-attachment: fixed;
+            color: #f8fafc;
+            min-height: 100vh;
         }
-        .save-button:hover {
-            background-color: var(--accent-hover);
+
+        /* Glassmorphism */
+        .glass-header {
+            background: rgba(2, 6, 23, 0.95);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
         }
-        .save-button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--card-border);
         }
-        .loading-overlay {
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background-color: rgba(0, 0, 0, 0.5);
-            z-index: 2000;
-            display: none;
-            align-items: center;
-            justify-content: center;
+
+        /* Table Styling */
+        .sticky-header th {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(8px);
+            box-shadow: 0 1px 0 rgba(255,255,255,0.1);
         }
-        .loading-overlay.active { display: flex; }
-        .loading-spinner {
-            border: 4px solid var(--bg-light);
-            border-top: 4px solid var(--accent);
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            animation: spin 1s linear infinite;
+
+        /* Input Styling */
+        .score-input {
+            background: #020617;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #00d084;
+            font-family: 'JetBrains Mono', monospace;
+            text-align: center;
+            transition: all 0.2s ease;
+            border-radius: 6px;
         }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        .score-input:focus {
+            outline: none;
+            border-color: #00d084;
+            box-shadow: 0 0 0 2px rgba(0, 208, 132, 0.2);
+            background: #0f172a;
         }
+        .score-input::placeholder { color: rgba(255,255,255,0.1); }
+
+        /* Remove spinner arrows from inputs */
+        input[type="text"]::-webkit-outer-spin-button,
+        input[type="text"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type="text"] { -moz-appearance: textfield; }
+
+        /* Loading */
+        .loading-overlay { background: rgba(2, 6, 23, 0.9); z-index: 9999; }
     </style>
 </head>
-<body class="min-h-screen">
+<body class="antialiased selection:bg-brand selection:text-black">
 
-    <header class="main-header">
+    <header class="glass-header sticky top-0 z-40 transition-all duration-300">
         <div class="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex items-center justify-between h-20">
-                <h1 class="text-3xl font-extrabold text-white tracking-tight">Admin Score Panel</h1>
-                <a href="index.html" class="text-sm font-semibold text-[var(--accent)] hover:text-[var(--accent-hover)]">&larr; Back to Main Site</a>
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded bg-gradient-to-br from-brand to-brand-dark flex items-center justify-center shadow-[0_0_15px_var(--accent-glow)]">
+                        <svg class="w-5 h-5 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
+                    </div>
+                    <h1 class="text-lg font-black tracking-tight text-white uppercase italic">
+                        Admin <span class="text-brand">Panel</span>
+                    </h1>
+                </div>
+                <a href="index.html" class="text-xs font-bold text-gray-400 hover:text-white uppercase tracking-widest transition-colors flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                    Back to Draft
+                </a>
             </div>
         </div>
     </header>
 
-    <main class="container mx-auto p-4 sm:p-6 lg:p-8">
-        <div class="content-section max-w-5xl mx-auto">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-2xl sm:text-3xl font-extrabold text-white">Enter Player Scores</h2>
-                <a href="admin_importer.html" class="text-sm font-semibold text-[var(--accent)] hover:text-[var(--accent-hover)]">Have a CSV? Click here to upload in bulk &rarr;</a>
+    <main class="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="glass-panel rounded-xl p-6 md:p-8 relative overflow-hidden">
+            
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4">
+                <div>
+                    <h2 class="text-2xl font-black text-white uppercase italic tracking-tight mb-1">Player <span class="text-brand">Scores</span></h2>
+                    <p class="text-sm text-gray-400">Manually enter points or use the bulk uploader.</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <a href="admin_importer.html" class="text-xs font-bold uppercase tracking-wide text-brand hover:text-white border border-brand/30 hover:bg-brand hover:border-brand hover:text-black px-4 py-2 rounded-lg transition-all flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                        Upload CSV
+                    </a>
+                    <button id="save-scores-btn" class="bg-brand hover:bg-brand-dark text-black font-black text-xs uppercase tracking-wide px-6 py-2 rounded-lg shadow-[0_0_15px_rgba(0,208,132,0.3)] transition-all transform active:scale-95 flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
+                        Save All
+                    </button>
+                </div>
             </div>
             
-            <div class="overflow-x-auto">
-                <table id="scores-table" class="admin-table min-w-full">
-                    <thead class="sticky-header">
+            <div class="overflow-x-auto rounded-lg border border-white/5 bg-surface-900/50 max-h-[75vh] overflow-y-auto custom-scrollbar">
+                <table id="scores-table" class="w-full text-sm text-left">
+                    <thead class="text-xs text-gray-400 uppercase sticky-header">
                         <tr>
-                            <th>Player</th>
-                            <th class="text-center">WC</th>
-                            <th class="text-center">DIV</th>
-                            <th class="text-center">CONF</th>
-                            <th class="text-center">SB</th>
+                            <th class="px-6 py-4 bg-surface-800/95">Player</th>
+                            <th class="px-4 py-4 text-center w-24 bg-surface-800/95">WC</th>
+                            <th class="px-4 py-4 text-center w-24 bg-surface-800/95">DIV</th>
+                            <th class="px-4 py-4 text-center w-24 bg-surface-800/95">CONF</th>
+                            <th class="px-4 py-4 text-center w-24 bg-surface-800/95">SB</th>
                         </tr>
                     </thead>
-                    <tbody id="scores-table-body">
+                    <tbody id="scores-table-body" class="divide-y divide-white/5 text-gray-300">
                         </tbody>
                 </table>
-            </div>
-            <div class="mt-6 text-right">
-                <button id="save-scores-btn" class="save-button">Save All Scores</button>
             </div>
         </div>
     </main>
 
-    <div id="loading-overlay" class="loading-overlay" role="status" aria-live="polite">
-        <div class="loading-spinner" aria-label="Loading"></div>
+    <div id="loading-overlay" class="loading-overlay fixed inset-0 flex flex-col items-center justify-center gap-4 hidden">
+        <div class="w-10 h-10 border-4 border-surface-700 border-t-brand rounded-full animate-spin"></div>
+        <span class="text-brand font-bold tracking-widest text-xs uppercase">Loading Data</span>
     </div>
 
     <script type="module">
@@ -167,12 +171,7 @@
         let allPlayers = []; 
         let playerScores = {}; 
 
-        try {
-            supabaseClient = getSupabaseClient();
-        } catch (e) {
-            console.error("Error initializing Supabase.", e.message);
-            alert("CRITICAL ERROR: Could not connect to Supabase. Check console.");
-        }
+        try { supabaseClient = getSupabaseClient(); } catch (e) { console.error(e); }
 
         const uiElements = {
             tableBody: document.getElementById('scores-table-body'),
@@ -181,63 +180,40 @@
         };
 
         document.addEventListener('DOMContentLoaded', () => {
-            if (!supabaseClient) {
-                alert("Supabase client not initialized. Page will not work.");
-                return;
-            }
+            if (!supabaseClient) { alert("Supabase error."); return; }
             showLoading(true);
             checkUserAndLoadData();
-            setupEventListeners();
-        });
-
-        function setupEventListeners() {
             uiElements.saveButton?.addEventListener('click', handleSaveScores);
-        }
+        });
 
         async function checkUserAndLoadData() {
             const { data, error } = await supabaseClient.auth.getSession();
-            if (error || !data.session) {
-                window.location.href = "login.html"; 
-                return;
-            }
+            if (error || !data.session) { window.location.href = "login.html"; return; }
 
             const isAdmin = await checkIsAdmin();
             if (!isAdmin) {
-                alert("Access Denied: This page is for administrators only.");
+                alert("Access Denied.");
                 window.location.href = "index.html";
                 return;
             }
-
             await fetchAllData();
         }
 
         async function fetchAllData() {
             try {
-                let { data: playersData, error: playersError } = await supabaseClient
-                    .from('players')
-                    .select('*')
-                    .order('name', { ascending: true });
-                
-                if (playersError) throw playersError;
+                let { data: playersData } = await supabaseClient.from('players').select('*').order('name', { ascending: true });
                 allPlayers = playersData;
 
-                let { data: scoresData, error: scoresError } = await supabaseClient
-                    .from('player_scores')
-                    .select('*');
-
-                if (scoresError) throw scoresError;
-
+                let { data: scoresData } = await supabaseClient.from('player_scores').select('*');
                 playerScores = scoresData.reduce((acc, score) => {
-                    const key = `${score.player_id}-${score.playoff_round}`;
-                    acc[key] = score.points;
+                    acc[`${score.player_id}-${score.playoff_round}`] = score.points;
                     return acc;
                 }, {});
 
                 renderScoresTable();
-
             } catch (error) {
-                console.error("Error fetching data:", error.message);
-                alert("Error: " + error.message);
+                console.error(error);
+                alert("Error loading data.");
             } finally {
                 showLoading(false);
             }
@@ -248,7 +224,6 @@
             const scoreUpdates = [];
             
             const allInputs = uiElements.tableBody.querySelectorAll('input[data-player-id]');
-
             allInputs.forEach(input => {
                 const playerId = input.dataset.playerId;
                 const round = input.dataset.round;
@@ -264,23 +239,16 @@
             });
 
             if (scoreUpdates.length === 0) {
-                alert("No valid scores to update.");
                 showLoading(false);
                 return;
             }
 
             try {
-                const { error } = await supabaseClient.rpc('bulk_upsert_player_scores', {
-                    scores_to_update: scoreUpdates
-                });
-
+                const { error } = await supabaseClient.rpc('bulk_upsert_player_scores', { scores_to_update: scoreUpdates });
                 if (error) throw error;
-
                 alert("Scores saved successfully!");
                 await fetchAllData();
-
             } catch (error) {
-                console.error("Error saving scores:", error.message);
                 alert("Error: " + error.message);
             } finally {
                 showLoading(false);
@@ -294,34 +262,36 @@
             const rounds = ['WC', 'DIV', 'CONF', 'SB'];
 
             allPlayers.forEach(player => {
-                const row = fragment.appendChild(document.createElement('tr'));
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-white/5 transition-colors';
                 row.innerHTML = `
-                    <td class="whitespace-nowrap">
-                        <div class="font-semibold">${player.name}</div>
-                        <div class="text-xs text-[var(--text-muted)]">${player.position} - ${player.team}</div>
+                    <td class="px-6 py-3 whitespace-nowrap">
+                        <div class="font-bold text-white">${player.name}</div>
+                        <div class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">${player.position} • ${player.team}</div>
                     </td>
                     ${rounds.map(round => `
-                        <td class="text-center">
+                        <td class="px-2 py-2 text-center">
                             <input 
                                 type="text" 
                                 inputmode="decimal"
                                 pattern="[0-9.-]*"
-                                class="form-input" 
+                                class="score-input w-20 p-2 text-sm" 
                                 data-player-id="${player.id}" 
                                 data-round="${round}"
                                 value="${playerScores[`${player.id}-${round}`] ?? ''}"
-                                placeholder="0.0"
+                                placeholder="-"
                             >
                         </td>
                     `).join('')}
                 `;
+                fragment.appendChild(row);
             });
 
             uiElements.tableBody.appendChild(fragment);
         }
 
         function showLoading(isLoading) {
-            uiElements.loadingOverlay?.classList.toggle('active', isLoading);
+            uiElements.loadingOverlay?.classList.toggle('hidden', !isLoading);
         }
     </script>
 </body>

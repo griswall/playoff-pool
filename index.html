@@ -92,7 +92,7 @@
         }
 
         /* Card Content Layout */
-        .card-left { display: flex; align-items: center; gap: 0.75rem; flex: 1; min-width: 0; /* Prevents flex item from overflowing */ }
+        .card-left { display: flex; align-items: center; gap: 0.75rem; flex: 1; min-width: 0; }
         .card-right { text-align: right; flex-shrink: 0; }
 
         /* Player Image */
@@ -391,12 +391,14 @@
             leftDiv.className = 'card-left';
 
             // Avatar
-            // *** FIX: Added explicit width and height and shrink-0 to container ***
             const imgContainer = document.createElement('div');
             imgContainer.className = 'relative w-[42px] h-[42px] shrink-0';
             
             const img = document.createElement('img');
-            img.src = player.imageUrl || '';
+            // *** FIX: Use DB Image URL, then fallback to old logic if missing ***
+            img.src = player.image_url || (player.position === 'DST' 
+                ? `https://a.espncdn.com/i/teamlogos/nfl/500/${player.espn_id || '0'}.png`
+                : `https://a.espncdn.com/i/headshots/nfl/players/full/${player.espn_id || '0'}.png`);
             img.className = 'player-avatar w-full h-full';
             img.loading = 'lazy';
             
@@ -451,7 +453,6 @@
         }
 
         // 2. Render Roster Slots (Shared by Desktop Sidebar AND Mobile Drawer)
-        // We call this twice: once for sidebar (desktop), once for drawer (mobile)
         function renderRosterSlots() {
             const desktopContainer = uiElements.rosterSlotsContainer;
             const mobileContainer = document.getElementById('mobile-roster-container');
@@ -461,7 +462,6 @@
 
             const slotOrder = ["QB", "RB1", "RB2", "RB3", "WR1", "WR2", "WR3", "FLEX", "DST", "K"];
 
-            // Helper to create a slot row
             const createSlotEl = (slotKey, isMobile) => {
                 const playerInSlot = appState.roster[slotKey];
                 const slotDiv = document.createElement('div');
@@ -474,7 +474,6 @@
                     const left = document.createElement('div');
                     left.className = 'flex items-center gap-3';
                     
-                    // Label (e.g. QB)
                     const label = document.createElement('span');
                     label.className = 'text-[10px] font-bold text-gray-500 uppercase w-8';
                     label.textContent = slotKey.replace(/\d/, ''); 
@@ -503,7 +502,7 @@
                     
                     slotDiv.appendChild(left);
                     slotDiv.appendChild(right);
-                    if(!isMobile) slotDiv.classList.add('border-brand/20'); // Highlight desktop filled
+                    if(!isMobile) slotDiv.classList.add('border-brand/20'); 
                 } else {
                     // Empty State
                     const label = document.createElement('span');
@@ -534,7 +533,7 @@
             if (open) {
                 drawer.classList.add('open');
                 overlay.classList.add('open');
-                document.body.style.overflow = 'hidden'; // Prevent background scroll
+                document.body.style.overflow = 'hidden'; 
             } else {
                 drawer.classList.remove('open');
                 overlay.classList.remove('open');
@@ -637,7 +636,7 @@
                 
                 pRes.data.forEach(p => {
                     const scores = [scoresMap[`${p.id}-WC`]||0, scoresMap[`${p.id}-DIV`]||0, scoresMap[`${p.id}-CONF`]||0, scoresMap[`${p.id}-SB`]||0];
-                    const player = { ...p, imageUrl: p.position==='DST' ? `https://a.espncdn.com/i/teamlogos/nfl/500/${p.id}.png` : `https://a.espncdn.com/i/headshots/nfl/players/full/${p.id}.png`, playoffScores: scores, totalPoints: scores.reduce((a,b)=>a+b,0) };
+                    const player = { ...p, imageUrl: p.image_url, playoffScores: scores, totalPoints: scores.reduce((a,b)=>a+b,0) };
                     if (appState.allPlayersByPosition[player.position]) { appState.allPlayersByPosition[player.position].push(player); appState.playersById[player.id] = player; }
                 });
                 initializeUI();
@@ -670,7 +669,6 @@
             renderRosterSlots();
             renderSubHeader();
             triggerUpdateAllUI();
-            // *** FIX: Initial Sub Header check ***
             updateSubHeaderVisibility('nav-draft-team');
         }
 
@@ -870,12 +868,10 @@
                 event.currentTarget.classList.add('active');
                 uiElements.tabContents.forEach(c => c.classList.toggle('active', c.id === targetId));
                 
-                // *** FIX: Update sub header visibility on click ***
                 updateSubHeaderVisibility(event.currentTarget.id);
             }
         }
 
-        // *** FIX: New Helper Function ***
         function updateSubHeaderVisibility(activeLinkId) {
             if (activeLinkId === 'nav-draft-team') {
                 uiElements.subHeader.classList.remove('sub-header-hidden');

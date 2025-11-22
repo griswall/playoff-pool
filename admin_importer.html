@@ -6,13 +6,8 @@
     <title>Bulk Score Importer - Hurd NFL Playoff Pool</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <!-- 1. Import Supabase Library -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- Runtime Supabase configuration (replace values or set window.__SUPABASE_CONFIG__) -->
-    <script id="supabase-config" type="application/json">
-        <!-- **** NOTE: adminEmails array is no longer needed here **** -->
-        {"url":"https://jlsudfmhsmxmxpdtkrzr.supabase.co","anonKey":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impsc3VkZm1oc214bXhwZHRrcnpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExNDQxNjEsImV4cCI6MjA3NjcyMDE2MX0.zJrz82WArsyFLybmGsxkOAr9HBoHrFhfa2pHwqvojxk"}
-    </script>
+    
     <style>
         :root {
             --accent: #00d084;
@@ -146,29 +141,19 @@
     </div>
 
     <script type="module">
-        // =================================================================================
-        // --- SUPABASE & APP INITIALIZATION ---
-        // =================================================================================
-        
-        // **This imports your new supabaseClient.js file**
-        // **** UPDATED: Added checkIsAdmin, removed getSupabaseConfig and isAdminEmail ****
         import { getSupabaseClient, checkIsAdmin } from './scripts/supabaseClient.js';
 
         let supabaseClient;
-        let playerMap = new Map(); // To map player names to IDs
+        let playerMap = new Map(); 
         let parsedData = [];
-        // **** REMOVED: adminEmails array is no longer needed ****
-        // let adminEmails = [];
 
         try {
-            // **** REMOVED: config and adminEmails loading ****
             supabaseClient = getSupabaseClient();
         } catch (e) {
             console.error("Error initializing Supabase.", e.message);
             alert("CRITICAL ERROR: Could not connect to Supabase. Check console.");
         }
 
-        // --- DOM REFERENCES ---
         const dropArea = document.getElementById('file-drop-area');
         const fileInput = document.getElementById('file-input');
         const fileNameDisplay = document.getElementById('file-name');
@@ -176,10 +161,6 @@
         const logBox = document.getElementById('log-box');
         const loadingOverlay = document.getElementById('loading-overlay');
 
-        // =================================================================================
-        // --- APP INITIALIZATION ---
-        // =================================================================================
-        
         document.addEventListener('DOMContentLoaded', () => {
             if (!supabaseClient) {
                 log("Error: Supabase client not initialized. Page will not work.", "error");
@@ -191,7 +172,6 @@
         });
 
         function setupEventListeners() {
-            // File Drop Area
             ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
                 dropArea.addEventListener(eventName, preventDefaults, false);
             });
@@ -204,14 +184,8 @@
             dropArea.addEventListener('drop', handleDrop, false);
             dropArea.addEventListener('click', () => fileInput.click());
             fileInput.addEventListener('change', handleFileSelect);
-
-            // Upload Button
             uploadButton.addEventListener('click', handleUpload);
         }
-
-        // =================================================================================
-        // --- AUTH & DATA FETCHING ---
-        // =================================================================================
 
         async function checkUserAndLoadPlayers() {
             const { data, error } = await supabaseClient.auth.getSession();
@@ -222,9 +196,6 @@
                 return;
             }
 
-            // **** REMOVED: Old client-side admin check ****
-
-            // **** NEW: Secure server-side admin check ****
             const isAdmin = await checkIsAdmin();
             if (!isAdmin) {
                 log("Access denied. This tool is for administrators only.", "error");
@@ -232,7 +203,6 @@
                 window.location.href = "index.html";
                 return;
             }
-            // **** END NEW CHECK ****
 
             log("Admin user authenticated. Fetching player list for mapping...");
             try {
@@ -242,7 +212,6 @@
                 
                 if (playersError) throw playersError;
 
-                // Create the name-to-ID map
                 players.forEach(player => {
                     playerMap.set(player.name, player.id);
                 });
@@ -254,10 +223,6 @@
                 showLoading(false);
             }
         }
-
-        // =================================================================================
-        // --- FILE HANDLING ---
-        // =================================================================================
 
         function preventDefaults(e) {
             e.preventDefault();
@@ -288,7 +253,7 @@
             reader.onload = (e) => {
                 try {
                     const text = e.target.result;
-                    parsedData = parseAndMapCSV(text); // Use the new mapping function
+                    parsedData = parseAndMapCSV(text); 
                     if (parsedData.length > 0) {
                         log(`Successfully parsed and mapped ${parsedData.length} score entries. Ready to upload.`, "success");
                         uploadButton.disabled = false;
@@ -326,7 +291,6 @@
                 const values = rows[i].split(',');
                 const playerName = values[nameIdx].trim();
                 
-                // Find the player ID from our map
                 const playerId = playerMap.get(playerName);
                 
                 if (!playerId) {
@@ -335,7 +299,6 @@
                     continue;
                 }
 
-                // Add scores for each round
                 const rounds = [
                     { round: 'WC', points: parseFloat(values[wcIdx]) },
                     { round: 'DIV', points: parseFloat(values[divIdx]) },
@@ -344,7 +307,6 @@
                 ];
 
                 rounds.forEach(r => {
-                    // Only add if points are a valid number (e.g., not 0 or NaN)
                     if (r.points && !isNaN(r.points)) { 
                         dataToUpload.push({
                             player_id_to_update: playerId,
@@ -365,10 +327,6 @@
             return dataToUpload;
         }
 
-        // =================================================================================
-        // --- CORE UPLOAD LOGIC ---
-        // =================================================================================
-
         async function handleUpload() {
             if (parsedData.length === 0) {
                 alert("No valid data to upload. Please select a file with scores.");
@@ -379,7 +337,6 @@
             log(`Uploading ${parsedData.length} score entries...`);
 
             try {
-                // Call the database function
                 const { error } = await supabaseClient.rpc('bulk_upsert_player_scores', {
                     scores_to_update: parsedData
                 });
@@ -388,11 +345,10 @@
 
                 log(`Successfully saved ${parsedData.length} scores!`, "success");
                 alert("Scores saved successfully!");
-                // Reset UI
                 fileNameDisplay.textContent = "";
                 uploadButton.disabled = true;
                 parsedData = [];
-                fileInput.value = ""; // Clear file input
+                fileInput.value = "";
 
             } catch (error) {
                 console.error("Error saving scores:", error.message);
@@ -403,10 +359,6 @@
             }
         }
 
-        // =================================================================================
-        // --- UI HELPERS ---
-        // =================================================================================
-
         function log(message, type = 'message') {
             const p = document.createElement('p');
             p.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
@@ -414,7 +366,7 @@
             if (type === 'success') p.className = 'log-success';
             if (type === 'message') p.className = 'log-message';
             logBox.appendChild(p);
-            logBox.scrollTop = logBox.scrollHeight; // Auto-scroll to bottom
+            logBox.scrollTop = logBox.scrollHeight;
         }
 
         function showLoading(isLoading) {

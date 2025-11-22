@@ -68,7 +68,7 @@
             border-bottom: 1px solid rgba(255, 255, 255, 0.05);
         }
 
-        .nav-link { position: relative; transition: color 0.2s; }
+        .nav-link { position: relative; transition: color 0.2s; cursor: pointer; }
         .nav-link.active::after {
             content: ''; position: absolute; bottom: -21px; left: 0; width: 100%; height: 3px;
             background: var(--accent); box-shadow: 0 -2px 10px var(--accent-glow); border-radius: 2px 2px 0 0;
@@ -128,11 +128,11 @@
         }
         .roster-drawer.open { transform: translateY(0); }
 
-        /* Tab Visibility */
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
-        /* Ensure Draft View uses Flex when active */
-        #draft-team-view.active { display: flex; }
+        /* Tab Visibility - Forced Styles */
+        .tab-content { display: none !important; }
+        .tab-content.active { display: block !important; }
+        /* Specific override for Draft View to use Flex */
+        #draft-team-view.active { display: flex !important; }
 
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .loading-overlay { background: rgba(2, 6, 23, 0.9); z-index: 9999; }
@@ -162,7 +162,7 @@
                 </div>
 
                 <div class="hidden md:flex items-center gap-6">
-                    <nav class="flex space-x-6">
+                    <nav class="flex space-x-6" id="desktop-nav">
                         <a href="#draft-team-view" id="nav-draft-team" class="nav-link active text-xs font-bold uppercase tracking-widest text-brand hover:text-white">Draft</a>
                         <a href="#player-scores-view" id="nav-player-scores" class="nav-link text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-white">Scores</a>
                         <a href="#standings-view" id="nav-standings" class="nav-link text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-white">Standings</a>
@@ -193,11 +193,8 @@
 
     <main class="container mx-auto px-4 sm:px-6 lg:px-8 py-6">
         
-        <div id="draft-team-view" class="tab-content active flex flex-col xl:flex-row gap-8">
-            
-            <div id="player-pool-container" class="w-full xl:w-3/4 space-y-8" role="region" aria-label="Available players">
-                </div>
-            
+        <div id="draft-team-view" class="tab-content active flex-col xl:flex-row gap-8">
+            <div id="player-pool-container" class="w-full xl:w-3/4 space-y-8" role="region" aria-label="Available players"></div>
             <aside class="hidden xl:block w-1/4 space-y-6 sticky top-32 self-start">
                 <div class="glass-panel rounded-xl p-6 shadow-2xl">
                     <div class="mb-8">
@@ -218,8 +215,7 @@
                             <h3 class="text-xs font-bold uppercase text-gray-400 tracking-widest">Your Roster</h3>
                             <span class="bg-surface-800 px-2 py-0.5 rounded text-xs font-bold text-white"><span id="roster-count">0</span>/10</span>
                         </div>
-                        <div id="roster-slots-container" class="space-y-2">
-                            </div>
+                        <div id="roster-slots-container" class="space-y-2"></div>
                     </div>
                     <div class="mt-8">
                         <button id="submit-team-button" disabled class="w-full bg-brand hover:bg-brand-dark text-black font-black text-lg py-3 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all uppercase tracking-wide">Submit Team</button>
@@ -335,37 +331,85 @@
         let supabaseClient;
         try { supabaseClient = getSupabaseClient(); } catch (e) { console.error(e); }
 
+        // VARIABLES (Hoisted)
+        let uiElements = {};
         const CONSTANTS = { INITIAL_SALARY_CAP: 38500000, MAX_PLAYERS_PER_TEAM: 3, ROSTER_SIZE: 10, MAX_ENTRIES_PER_USER: 4, DEBOUNCE_DELAY: 50 };
         const appState = { currentUser: null, currentSession: null, currentSalarySpent: 0, draftedPlayers: {}, roster: { QB: null, RB1: null, RB2: null, RB3: null, WR1: null, WR2: null, WR3: null, FLEX: null, DST: null, K: null }, teamCounts: {}, playersById: {}, allPlayersByPosition: {}, editingTeamId: null };
         const rosterSlotConfig = { QB: { count: 1, display: "QB", slots: ["QB"] }, RB: { count: 3, display: "RB", slots: ["RB1", "RB2", "RB3"] }, WR: { count: 3, display: "WR", slots: ["WR1", "WR2", "WR3"] }, FLEX: { count: 1, display: "FLEX", slots: ["FLEX"] }, DST: { count: 1, display: "D/ST", slots: ["DST"] }, K: { count: 1, display: "K", slots: ["K"]}, TE: { count: 0, display: "TE", slots: [] } };
-        
-        const uiElements = {
-            playerPoolContainer: document.getElementById('player-pool-container'),
-            rosterSlotsContainer: document.getElementById('roster-slots-container'),
-            remainingSalaryEl: document.getElementById('remaining-salary'),
-            salaryProgressBar: document.getElementById('salary-progress-bar'),
-            rosterCountEl: document.getElementById('roster-count'),
-            submitTeamButton: document.getElementById('submit-team-button'),
-            submitTeamMessage: document.getElementById('submit-team-message'),
-            navLinks: document.querySelectorAll('.nav-link'),
-            tabContents: document.querySelectorAll('.tab-content'),
-            alertModal: document.getElementById('alert-modal'),
-            subHeader: document.getElementById('sub-header'),
-            loadingOverlay: document.getElementById('loading-overlay'),
-            playerScoresList: document.getElementById('player-scores-list'),
-            standingsTableBody: document.querySelector('#standings-table tbody'),
-            userAuthSection: document.getElementById('user-auth-section'),
-            loginButton: document.getElementById('login-button'),
-            userProfileSection: document.getElementById('user-profile-section'),
-            userEmailDisplay: document.getElementById('user-email-display'),
-            logoutButton: document.getElementById('logout-button'),
-            promptModal: document.getElementById('prompt-modal'),
-            adminNavButton: document.getElementById('nav-admin')
-        };
-
         let updateUITimeout = null;
 
-        // --- HOISTED FUNCTIONS ---
+        // CORE INIT
+        document.addEventListener('DOMContentLoaded', () => {
+            // Select DOM elements HERE, when we know they exist
+            uiElements = {
+                playerPoolContainer: document.getElementById('player-pool-container'),
+                rosterSlotsContainer: document.getElementById('roster-slots-container'),
+                remainingSalaryEl: document.getElementById('remaining-salary'),
+                salaryProgressBar: document.getElementById('salary-progress-bar'),
+                rosterCountEl: document.getElementById('roster-count'),
+                submitTeamButton: document.getElementById('submit-team-button'),
+                submitTeamMessage: document.getElementById('submit-team-message'),
+                navLinks: document.querySelectorAll('.nav-link'),
+                tabContents: document.querySelectorAll('.tab-content'),
+                alertModal: document.getElementById('alert-modal'),
+                subHeader: document.getElementById('sub-header'),
+                loadingOverlay: document.getElementById('loading-overlay'),
+                playerScoresList: document.getElementById('player-scores-list'),
+                standingsTableBody: document.querySelector('#standings-table tbody'),
+                userAuthSection: document.getElementById('user-auth-section'),
+                loginButton: document.getElementById('login-button'),
+                userProfileSection: document.getElementById('user-profile-section'),
+                userEmailDisplay: document.getElementById('user-email-display'),
+                logoutButton: document.getElementById('logout-button'),
+                promptModal: document.getElementById('prompt-modal'),
+                adminNavButton: document.getElementById('nav-admin')
+            };
+
+            showLoadingState();
+            checkUser(); 
+            setupEventListeners();
+        });
+
+        function setupEventListeners() {
+            uiElements.playerPoolContainer?.addEventListener('click', handlePlayerPoolClick);
+            // Attach listeners to the newly found navLinks
+            uiElements.navLinks.forEach(link => link.addEventListener('click', handleNavLinkClick));
+            
+            document.getElementById('alert-modal-close-btn')?.addEventListener('click', () => uiElements.alertModal?.classList.add('hidden'));
+            document.getElementById('prompt-modal-cancel-btn')?.addEventListener('click', hidePromptModal);
+            document.getElementById('prompt-modal-confirm-btn')?.addEventListener('click', handleConfirmSubmission);
+            document.getElementById('mobile-submit-btn')?.addEventListener('click', handleSubmitTeamClick);
+            uiElements.logoutButton?.addEventListener('click', handleLogout);
+            uiElements.submitTeamButton?.addEventListener('click', handleSubmitTeamClick);
+        }
+
+        function handleNavLinkClick(event) {
+            event.preventDefault();
+            const href = event.currentTarget.getAttribute('href');
+            if (href.includes('.html')) { window.location.href = href; return; }
+            
+            const targetId = href.startsWith('#') ? href.substring(1) : '';
+            if (targetId) {
+                // Reset all tabs
+                uiElements.navLinks.forEach(nav => { 
+                    nav.classList.remove('active', 'text-brand'); 
+                    nav.classList.add('text-gray-400'); 
+                });
+                // Activate clicked
+                event.currentTarget.classList.add('active', 'text-brand'); 
+                event.currentTarget.classList.remove('text-gray-400');
+                
+                // Toggle Views
+                uiElements.tabContents.forEach(c => c.classList.toggle('active', c.id === targetId));
+                
+                updateSubHeaderVisibility(event.currentTarget.id);
+                
+                // Force Render on click to prevent blank screens
+                if(targetId === 'player-scores-view') renderPlayerScoresTab();
+                if(targetId === 'standings-view') fetchAndRenderStandings();
+            }
+        }
+
         function handleSubmitTeamClick() {
             if (Object.keys(appState.draftedPlayers).length !== CONSTANTS.ROSTER_SIZE) { 
                 showAlertModal("Roster Incomplete", "You must draft 10 players to submit your team."); 
@@ -393,23 +437,6 @@
                 if (window.location.search.includes('edit_team_id')) setTimeout(() => window.location.href = "my-teams.html", 1500);
                 else resetDraftState(); 
             } catch (e) { showAlertModal("Error", e.message); } finally { hideLoadingState(); }
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            showLoadingState();
-            checkUser(); 
-            setupEventListeners();
-        });
-
-        function setupEventListeners() {
-            uiElements.playerPoolContainer?.addEventListener('click', handlePlayerPoolClick);
-            uiElements.navLinks?.forEach(link => link.addEventListener('click', handleNavLinkClick));
-            document.getElementById('alert-modal-close-btn')?.addEventListener('click', () => uiElements.alertModal?.classList.add('hidden'));
-            document.getElementById('prompt-modal-cancel-btn')?.addEventListener('click', hidePromptModal);
-            document.getElementById('prompt-modal-confirm-btn')?.addEventListener('click', handleConfirmSubmission);
-            document.getElementById('mobile-submit-btn')?.addEventListener('click', handleSubmitTeamClick);
-            uiElements.logoutButton?.addEventListener('click', handleLogout);
-            uiElements.submitTeamButton?.addEventListener('click', handleSubmitTeamClick);
         }
 
         async function checkUser() {
@@ -480,21 +507,6 @@
         function removePlayer(id,s) { const p=appState.draftedPlayers[id]; if(!p)return; appState.currentSalarySpent-=p.salary; appState.teamCounts[p.team]--; if(appState.teamCounts[p.team]<=0) delete appState.teamCounts[p.team]; delete appState.draftedPlayers[id]; appState.roster[s]=null; triggerUpdateAllUI(); }
         function resetDraftState() { appState.currentSalarySpent=0; appState.draftedPlayers={}; appState.roster={QB:null,RB1:null,RB2:null,RB3:null,WR1:null,WR2:null,WR3:null,FLEX:null,DST:null,K:null}; appState.teamCounts={}; appState.editingTeamId=null; triggerUpdateAllUI(); }
 
-        function handleNavLinkClick(event) {
-            event.preventDefault();
-            const href = event.currentTarget.getAttribute('href');
-            if (href.includes('.html')) { window.location.href = href; return; }
-            const targetId = href.startsWith('#') ? href.substring(1) : '';
-            if (targetId) {
-                uiElements.navLinks.forEach(nav => { nav.classList.remove('active', 'text-brand'); nav.classList.add('text-gray-400'); });
-                event.currentTarget.classList.add('active', 'text-brand'); event.currentTarget.classList.remove('text-gray-400');
-                uiElements.tabContents.forEach(c => c.classList.toggle('active', c.id === targetId));
-                updateSubHeaderVisibility(event.currentTarget.id);
-                if(targetId === 'player-scores-view') renderPlayerScoresTab();
-                if(targetId === 'standings-view') fetchAndRenderStandings();
-            }
-        }
-
         function updateSubHeaderVisibility(activeLinkId) {
             if (activeLinkId === 'nav-draft-team') uiElements.subHeader.classList.remove('sub-header-hidden');
             else uiElements.subHeader.classList.add('sub-header-hidden');
@@ -521,7 +533,7 @@
             const leftDiv = document.createElement('div'); leftDiv.className = 'card-left';
             const imgContainer = document.createElement('div'); imgContainer.className = 'relative w-[42px] h-[42px] shrink-0';
             const img = document.createElement('img');
-            img.src = player.imageUrl || (player.position === 'DST' ? `https://a.espncdn.com/i/teamlogos/nfl/500/${player.espn_id||'0'}.png` : `https://a.espncdn.com/i/headshots/nfl/players/full/${player.espn_id||'0'}.png`);
+            img.src = player.image_url || (player.position === 'DST' ? `https://a.espncdn.com/i/teamlogos/nfl/500/${player.espn_id||'0'}.png` : `https://a.espncdn.com/i/headshots/nfl/players/full/${player.espn_id||'0'}.png`);
             img.className = 'player-avatar w-full h-full'; img.loading = 'lazy';
             const fallback = document.createElement('div'); fallback.className = 'player-fallback-initial player-avatar absolute inset-0 w-full h-full'; fallback.textContent = (player.name?.charAt(0) || '?');
             img.onerror = () => { img.style.display='none'; fallback.classList.add('is-visible'); }; img.onload = () => { fallback.classList.remove('is-visible'); };
@@ -537,7 +549,6 @@
             const salaryEl = document.createElement('div'); salaryEl.className = 'text-sm font-mono font-bold text-brand'; salaryEl.textContent = formatToMillions(player.salary);
             const addIcon = document.createElement('div'); addIcon.className = 'text-[10px] text-gray-500 hidden group-hover:block mt-1'; addIcon.textContent = 'ADD +';
             rightDiv.appendChild(salaryEl); rightDiv.appendChild(addIcon);
-            
             card.appendChild(leftDiv); card.appendChild(rightDiv);
             return card;
         }
@@ -637,7 +648,7 @@
                 tbody.innerHTML = ''; if(!data?.length) { tbody.innerHTML = `<tr><td colspan="3" class="text-center py-8 text-gray-600">No teams.</td></tr>`; return; }
                 data.forEach((team, i) => {
                     const row = tbody.insertRow(); row.className = i < 3 ? 'bg-white/5' : '';
-                    row.innerHTML = `<td class="px-4 py-3 font-mono font-bold ${i===0?'text-yellow-400':i===1?'text-gray-300':i===2?'text-orange-400':'text-gray-500'}">#${team.rank}</td><td class="px-4 py-3 font-bold text-white text-xs md:text-sm">${team.team_name}</td><td class="px-4 py-3 text-right font-mono font-bold text-brand">${team.total_points.toFixed(1)}</td>`;
+                    row.innerHTML = `<td class="px-6 py-4 font-mono font-bold ${i===0?'text-yellow-400':i===1?'text-gray-300':i===2?'text-orange-400':'text-gray-500'}">#${team.rank}</td><td class="px-6 py-4 font-bold text-white text-sm">${team.team_name}</td><td class="px-6 py-4 text-right font-mono font-bold text-brand">${team.total_points.toFixed(1)}</td>`;
                 });
             } catch(e) {}
         }

@@ -6,12 +6,8 @@
     <title>Hurd NFL Playoff Pool</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <!-- 1. Import Supabase Library -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- Runtime Supabase configuration (replace values or set window.__SUPABASE_CONFIG__) -->
-    <script id="supabase-config" type="application/json">
-        {"url":"https://jlsudfmhsmxmxpdtkrzr.supabase.co","anonKey":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impsc3VkZm1oc214bXhwZHRrcnpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExNDQxNjEsImV4cCI6MjA3NjcyMDE2MX0.zJrz82WArsyFLybmGsxkOAr9HBoHrFhfa2pHwqvojxk"}
-    </script>
+    
     <style>
         :root {
             --accent: #00d084;
@@ -348,14 +344,11 @@
                         <a href="#player-scores-view" id="nav-player-scores" class="nav-link">Player Scores</a>
                         <a href="#standings-view" id="nav-standings" class="nav-link">Standings</a>
                         <a href="#rules-view" id="nav-rules" class="nav-link">Rules</a>
-                        <!-- **** NEW: Hidden Admin Link **** -->
                         <a href="admin.html" id="nav-admin" class="nav-link admin-link hidden">Admin Panel</a>
                     </nav>
                     <div id="user-auth-section" class="flex items-center">
-                        <!-- Logged Out View (default) -->
                         <a href="login.html" id="login-button" class="nav-link bg-[var(--accent)] text-black font-semibold">Login / Sign Up</a>
     
-                        <!-- Logged In View (hidden by default) -->
                         <div id="user-profile-section" class="hidden items-center space-x-4">
                             <a href="my-teams.html" id="user-email-link" class="text-sm text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors">
                                 <span id="user-email-display">user@example.com</span>
@@ -373,10 +366,8 @@
     <main class="container mx-auto p-4 sm:p-6 lg:p-8">
         <div id="draft-team-view" class="tab-content active flex-col lg:flex-row gap-6">
             <div id="player-pool-container" class="w-full lg:w-2/3 space-y-10" role="region" aria-label="Available players">
-                <!-- Player cards will be dynamically inserted here by JavaScript -->
-            </div>
+                </div>
             <aside class="w-full lg:w-1/3 space-y-6 lg:sticky lg:top-40 self-start">
-                <!-- Salary Cap Section -->
                 <div class="content-section p-4">
                     <h3 class="text-lg font-semibold text-white mb-1">Salary Cap</h3>
                     <div class="text-2xl salary-value mb-0.5" id="total-salary-cap" aria-label="Total salary cap">$38.5M</div>
@@ -385,12 +376,10 @@
                         <div id="salary-progress-bar" class="salary-cap-fill" style="width: 0%"></div>
                     </div>
                 </div>
-                 <!-- Roster Section -->
-                <div class="content-section p-4">
+                 <div class="content-section p-4">
                     <h3 class="text-lg font-semibold text-white mb-3">Your Current Roster (<span id="roster-count" aria-live="polite">0</span>/10)</h3>
                     <div id="roster-slots-container" class="space-y-2 text-gray-300" role="list" aria-label="Current roster">
-                        <!-- Roster slots -->
-                    </div>
+                        </div>
                     <button id="submit-team-button" class="mt-4 w-full nav-link bg-[var(--accent)] text-black font-bold text-lg py-2 disabled:opacity-50 disabled:cursor-not-allowed" disabled aria-label="Submit team">Submit Team</button>
                     <p id="submit-team-message" class="text-xs text-center mt-2 text-[var(--text-muted)]" aria-live="polite">Draft 10 players to submit.</p>
                     <p class="text-xs text-center mt-1 text-[var(--text-muted)]">(Max 4 entries per user)</p>
@@ -401,8 +390,7 @@
         <div id="player-scores-view" class="tab-content content-section">
             <h2 class="text-2xl sm:text-3xl font-extrabold text-white mb-6">Player Scores</h2>
             <div id="player-scores-list" class="space-y-8">
-                <!-- Player scores by position will be inserted here -->
-            </div>
+                </div>
         </div>
 
         <div id="standings-view" class="tab-content content-section">
@@ -470,7 +458,6 @@
         <p class="text-[var(--text-muted)]">&copy; 2025 Hurd NFL Playoff Pool. All Rights Reserved.</p>
     </footer>
 
-    <!-- Alert Modal -->
     <div id="alert-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="alert-modal-title">
         <div class="modal-box text-center">
             <h3 id="alert-modal-title" class="text-2xl font-bold text-white mb-4">Drafting Error</h3>
@@ -479,7 +466,6 @@
         </div>
     </div>
 
-    <!-- New Team Name Prompt Modal -->
     <div id="prompt-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="prompt-modal-title">
         <div class="modal-box">
             <h3 id="prompt-modal-title" class="text-2xl font-bold text-white mb-4">Name Your Team</h3>
@@ -493,18 +479,12 @@
         </div>
     </div>
 
-    <!-- Loading Overlay -->
     <div id="loading-overlay" class="loading-overlay" role="status" aria-live="polite">
         <div class="loading-spinner" aria-label="Loading"></div>
     </div>
 
 
     <script type="module">
-        // =================================================================================
-        // --- SUPABASE & APP INITIALIZATION ---
-        // =================================================================================
-        
-        // **** UPDATED: Import checkIsAdmin AND clearAdminCache ****
         import { getSupabaseClient, checkIsAdmin, clearAdminCache } from './scripts/supabaseClient.js';
         
         let supabaseClient;
@@ -514,9 +494,6 @@
             console.error("Error initializing Supabase. App may not function correctly.", e.message);
         }
 
-        // =================================================================================
-        // --- CONSTANTS ---
-        // =================================================================================
         const CONSTANTS = {
             INITIAL_SALARY_CAP: 38500000,
             MAX_PLAYERS_PER_TEAM: 3,
@@ -528,9 +505,6 @@
             PERFORMANCE_THRESHOLD: 100 
         };
 
-        // =================================================================================
-        // --- STATE MANAGEMENT ---
-        // =================================================================================
         const appState = {
             currentUser: null,
             currentSession: null,
@@ -549,10 +523,6 @@
 
         const timeouts = new Set();
         let updateUITimeout = null;
-
-        // =================================================================================
-        // --- UTILITY FUNCTIONS ---
-        // =================================================================================
 
         function safeSetTimeout(callback, delay) {
             const id = setTimeout(() => {
@@ -616,10 +586,6 @@
 
         function hideLoadingState() { showLoadingState(false); }
 
-        // =================================================================================
-        // --- DATA CONFIGURATION ---
-        // =================================================================================
-        
         const TEAMS = {
             "BAL": { name: "Baltimore Ravens" }, "BUF": { name: "Buffalo Bills" },
             "CLE": { name: "Cleveland Browns" }, "DAL": { name: "Dallas Cowboys" },
@@ -639,7 +605,6 @@
             TE: { count: 0, display: "TE", slots: [] }
         };
 
-        // --- DOM ELEMENT REFERENCES ---
         const uiElements = {
             playerPoolContainer: document.getElementById('player-pool-container'),
             rosterSlotsContainer: document.getElementById('roster-slots-container'),
@@ -671,13 +636,9 @@
             promptModalError: document.getElementById('prompt-modal-error'),
             promptModalConfirmBtn: document.getElementById('prompt-modal-confirm-btn'),
             promptModalCancelBtn: document.getElementById('prompt-modal-cancel-btn'),
-            // **** NEW: Reference to admin link ****
             adminNavButton: document.getElementById('nav-admin')
         };
 
-        // =================================================================================
-        // --- APP INITIALIZATION ---
-        // =================================================================================
         document.addEventListener('DOMContentLoaded', () => {
             showLoadingState();
             checkUser(); 
@@ -714,14 +675,9 @@
         function initializeUI() {
             measurePerformance('renderPlayerPool', renderPlayerPool);
             measurePerformance('renderRosterSlots', renderRosterSlots);
-            // Don't render scores/standings until data is fetched
             triggerUpdateAllUI(); 
             measurePerformance('renderSubHeader', renderSubHeader);
         }
-
-        // =================================================================================
-        // --- AUTHENTICATION & DATA FETCHING ---
-        // =================================================================================
 
         async function checkUser() {
             if (!supabaseClient) {
@@ -741,7 +697,6 @@
                 appState.currentSession = data.session;
                 updateAuthUI(true, data.session.user.email);
                 
-                // **** NEW: Check for admin status ****
                 checkAdminStatus();
 
                 const urlParams = new URLSearchParams(window.location.search);
@@ -752,15 +707,12 @@
                 if (teamIdToEdit) {
                     await loadTeamForEditing(teamIdToEdit);
                 } else {
-                    // Only hide loading if not in edit mode (loadTeamForEditing handles its own)
                     hideLoadingState();
                 }
                 
-                // Now that data is loaded, render the tabs that depend on it
                 measurePerformance('renderPlayerScoresTab', renderPlayerScoresTab); 
                 measurePerformance('fetchAndRenderStandings', fetchAndRenderStandings); 
 
-                // *** NEW: Check for URL hash to activate the correct tab ***
                 const currentHash = window.location.hash;
                 if (currentHash) {
                     const navLink = document.querySelector(`.nav-link[href="${currentHash}"]`);
@@ -773,9 +725,8 @@
             }
         }
 
-        // **** NEW: Function to check and show admin link ****
         async function checkAdminStatus() {
-            const isAdmin = await checkIsAdmin(); // Uses the function from supabaseClient.js
+            const isAdmin = await checkIsAdmin(); 
             if (isAdmin) {
                 uiElements.adminNavButton?.classList.remove('hidden');
             }
@@ -795,8 +746,6 @@
 
         async function handleLogout() {
             showLoadingState();
-            
-            // **** NEW: Clear the admin cache on logout ****
             clearAdminCache();
 
             const { error } = await supabaseClient.auth.signOut();
@@ -808,13 +757,9 @@
             hideLoadingState();
         }
 
-        /**
-         * Fetches all players AND all scores, then populates the app state.
-         */
         async function fetchPlayersAndScores() {
             showLoadingState(); 
             try {
-                // Fetch players and scores in parallel
                 const [playerPromise, scoresPromise] = [
                     supabaseClient.from('players').select('*'),
                     supabaseClient.from('player_scores').select('player_id, playoff_round, points')
@@ -828,10 +773,8 @@
                 }
                 if (scoresError) {
                     console.warn("Could not fetch player scores:", scoresError.message);
-                    // Non-critical, proceed with empty scores
                 }
 
-                // Create a fast lookup map for the scores
                 const scoresMap = (scoresData || []).reduce((acc, score) => {
                     const key = `${score.player_id}-${score.playoff_round}`;
                     acc[key] = score.points;
@@ -841,7 +784,6 @@
                 appState.allPlayersByPosition = { QB: [], RB: [], WR: [], TE: [], DST: [], K: [] };
 
                 players.forEach(p => {
-                    // Calculate scores and totals as we process players
                     const playoffScores = [
                         scoresMap[`${p.id}-WC`] || 0,
                         scoresMap[`${p.id}-DIV`] || 0,
@@ -856,8 +798,8 @@
                         imageUrl: p.position === 'DST'
                             ? `https://a.espncdn.com/i/teamlogos/nfl/500/${p.id}.png`
                             : `https://a.espncdn.com/i/headshots/nfl/players/full/${p.id}.png`,
-                        playoffScores: playoffScores, // Use calculated scores
-                        totalPoints: totalPoints      // Use calculated total
+                        playoffScores: playoffScores, 
+                        totalPoints: totalPoints      
                     };
 
                     if (appState.allPlayersByPosition[player.position]) {
@@ -866,13 +808,12 @@
                     }
                 });
 
-                initializeUI(); // Render everything now that we have data
+                initializeUI(); 
             
             } catch (error) {
                  console.error("Error fetching data:", error.message);
                 showAlertModal("Data Error", "Could not load data from the database. Please try refreshing.");
             } 
-            // ** REMOVED finally { hideLoadingState() } ** // It's handled by checkUser() and loadTeamForEditing()
         }
 
         async function loadTeamForEditing(teamId) {
@@ -932,10 +873,6 @@
             }
         }
 
-        // =================================================================================
-        // --- CORE DRAFTING LOGIC ---
-        // =================================================================================
-        
         function handleSubmitTeamClick() {
             if (Object.keys(appState.draftedPlayers).length !== CONSTANTS.ROSTER_SIZE) {
                 showAlertModal("Roster Incomplete", "You must draft 10 players to submit your team.");
@@ -966,7 +903,6 @@
 
             try {
                 if (!appState.editingTeamId) {
-                    // This is a NEW team
                     const { count, error: countError } = await supabaseClient
                         .from('user_teams')
                         .select('*', { count: 'exact', head: true })
@@ -984,15 +920,14 @@
                             user_id: appState.currentUser.id,
                             team_name: teamName
                         })
-                        .select('id') // Only select the ID
+                        .select('id') 
                         .single(); 
 
                     if (teamError) throw teamError;
                     
-                    appState.editingTeamId = teamData.id; // Set the ID for the player insert
+                    appState.editingTeamId = teamData.id; 
                 }
 
-                // --- Now we have a team ID (either new or from edit mode) ---
                 const playersToInsert = Object.keys(appState.roster)
                     .filter(slotKey => appState.roster[slotKey])
                     .map(slotKey => {
@@ -1025,7 +960,6 @@
 
                 if (playersError) throw playersError;
 
-                // Success!
                 if (window.location.search.includes('edit_team_id')) {
                     showAlertModal("Success!", `Your team has been updated.`);
                     safeSetTimeout(() => {
@@ -1040,7 +974,7 @@
                 console.error("Error submitting team:", error.message);
                 showAlertModal("Submit Error", error.message);
                 if (!window.location.search.includes('edit_team_id')) {
-                    appState.editingTeamId = null; // Clear editing ID on failure ONLY if it was a new team
+                    appState.editingTeamId = null; 
                 }
             } finally {
                 hideLoadingState();
@@ -1066,7 +1000,6 @@
                  uiElements.submitTeamMessage.textContent = `Draft 10 players to submit.`;
             }
             
-            // Clear URL params if we were editing
             if (window.location.search.includes('edit_team_id')) {
                 window.history.pushState({}, '', window.location.pathname);
             }
@@ -1107,13 +1040,11 @@
             if (!clickedLink) return;
             
             const href = clickedLink.getAttribute('href');
-            // Check if it's a full page link (like admin.html)
             if (href.includes('.html')) {
                 window.location.href = href;
                 return;
             }
 
-            // Handle in-page tab switching
             if (href.startsWith('#')) {
                 const targetId = href.substring(1);
                 const targetElement = document.getElementById(targetId);
@@ -1129,7 +1060,6 @@
                          await fetchAndRenderStandings();
                      }
 
-                     // Scroll to top of main content, not the tab itself
                      const mainElement = document.querySelector('main.container');
                      if (mainElement) {
                          mainElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1216,10 +1146,6 @@
             }
             triggerUpdateAllUI();
         }
-
-        // =================================================================================
-        // --- UI RENDERING AND UPDATES ---
-        // =================================================================================
 
         function renderPlayerPool() {
             if (!uiElements.playerPoolContainer) return;
@@ -1553,7 +1479,7 @@
 
         function renderSubHeader() {
             if (!uiElements.subHeader) return;
-            const positionOrder = Object.keys(appState.allPlayersByPosition); // Use state
+            const positionOrder = Object.keys(appState.allPlayersByPosition); 
             try {
                 uiElements.subHeader.innerHTML = `
                     <div class="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -1570,10 +1496,6 @@
             }
         }
 
-        // =================================================================================
-        // --- TAB RENDERING ---
-        // =================================================================================
-
         function renderPlayerScoresTab() {
             if (!uiElements.playerScoresList) return;
             uiElements.playerScoresList.innerHTML = '';
@@ -1582,7 +1504,7 @@
             const playoffRoundNames = ["WC", "Div", "Conf", "SB", "Total"];
 
             positionOrder.forEach(posKey => {
-                const players = appState.allPlayersByPosition[posKey]; // Use state
+                const players = appState.allPlayersByPosition[posKey]; 
                 if (Array.isArray(players) && players.length > 0) {
                     const section = document.createElement('div');
                     section.className = 'mb-8';
@@ -1630,15 +1552,13 @@
 
         async function fetchAndRenderStandings() {
             if (!uiElements.standingsTableBody) return;
-            // Show loading state inside the table
             uiElements.standingsTableBody.innerHTML = `<tr><td colspan="3" class="text-center text-[var(--text-muted)] py-8">Loading standings...</td></tr>`;
 
             try {
-                // ** THIS IS THE NEW LIVE DATA CALL **
                 const { data: standingsData, error } = await supabaseClient.rpc('get_standings');
                 if (error) throw error;
                 
-                renderStandingsTab(standingsData); // Pass live data to render
+                renderStandingsTab(standingsData); 
             } catch (error) {
                 console.error("Error fetching standings:", error.message);
                 uiElements.standingsTableBody.innerHTML = `<tr><td colspan="3" class="text-center text-[var(--error)] py-8">Could not load standings. ${error.message}</td></tr>`;
@@ -1647,7 +1567,7 @@
 
         function renderStandingsTab(standingsData = []) {
              if (!uiElements.standingsTableBody) return;
-            uiElements.standingsTableBody.innerHTML = ''; // Clear previous standings
+            uiElements.standingsTableBody.innerHTML = ''; 
             const fragment = document.createDocumentFragment();
 
             if (!standingsData || standingsData.length === 0) {
@@ -1674,9 +1594,7 @@
             });
             uiElements.standingsTableBody.appendChild(fragment);
         }
-
     </script>
 
 </body>
 </html>
-

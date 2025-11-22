@@ -6,12 +6,8 @@
     <title>Login - Hurd NFL Playoff Pool</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <!-- 1. Import Supabase Library -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
-    <!-- Runtime Supabase configuration (replace values or set window.__SUPABASE_CONFIG__) -->
-    <script id="supabase-config" type="application/json">
-        {"url":"https://jlsudfmhsmxmxpdtkrzr.supabase.co","anonKey":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impsc3VkZm1oc214bXhwZHRrcnpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExNDQxNjEsImV4cCI6MjA3NjcyMDE2MX0.zJrz82WArsyFLybmGsxkOAr9HBoHrFhfa2pHwqvojxk"}
-    </script>
+    
     <style>
         :root {
             --accent: #00d084;
@@ -85,7 +81,6 @@
         
         <div class="auth-form-container p-8">
 
-            <!-- Login Form -->
             <form id="login-form" class="space-y-6">
                 <h2 class="text-2xl font-bold text-center text-white">Sign In</h2>
                 <div id="login-error-message" class="error-message hidden"></div>
@@ -106,7 +101,6 @@
                 </p>
             </form>
 
-            <!-- Sign Up Form (Hidden by default) -->
             <form id="signup-form" class="space-y-6 hidden">
                 <h2 class="text-2xl font-bold text-center text-white">Create Account</h2>
                 <div id="signup-error-message" class="error-message hidden"></div>
@@ -133,21 +127,13 @@
     <script type="module">
         import { getSupabaseClient } from './scripts/supabaseClient.js';
 
-        // =================================================================================
-        // --- SUPABASE & APP INITIALIZATION ---
-        // =================================================================================
-
         let supabaseClient;
         try {
             supabaseClient = getSupabaseClient();
         } catch (e) {
             console.error("Error initializing Supabase.", e.message);
-            // We will show an error on the form
         }
         
-        // =================================================================================
-        // --- DOM ELEMENT REFERENCES ---
-        // =================================================================================
         const loginForm = document.getElementById('login-form');
         const signupForm = document.getElementById('signup-form');
         const toggleToSignup = document.getElementById('toggle-to-signup');
@@ -157,16 +143,10 @@
         const loginSubmitButton = document.getElementById('login-submit-button');
         const signupSubmitButton = document.getElementById('signup-submit-button');
 
-        // =================================================================================
-        // --- EVENT LISTENERS ---
-        // =================================================================================
-        
-        // Check for connection on page load
         if (!supabaseClient) {
             showLoginError("Connection error. Supabase keys are not configured correctly.");
         }
 
-        // Toggle between login and sign-up forms
         toggleToSignup.addEventListener('click', () => {
             loginForm.classList.add('hidden');
             signupForm.classList.remove('hidden');
@@ -177,7 +157,6 @@
             loginForm.classList.remove('hidden');
         });
 
-        // Handle Login Form Submission
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             setLoading(loginSubmitButton, true, "Signing In...");
@@ -198,11 +177,10 @@
                 showLoginError(error.message);
                 setLoading(loginSubmitButton, false, "Sign In");
             } else {
-                window.location.href = "index.html"; // Redirect to main app on success
+                window.location.href = "index.html"; 
             }
         });
 
-        // Handle Sign Up Form Submission
         signupForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             setLoading(signupSubmitButton, true, "Creating Account...");
@@ -223,53 +201,31 @@
                 showSignupError(error.message);
                 setLoading(signupSubmitButton, false, "Create Account");
             } else {
-                // For this app, we'll just log them in and redirect.
-                // A production app might require email confirmation.
                 setLoading(signupSubmitButton, false, "Success!");
-                window.location.href = "index.html"; // Redirect to main app
+                window.location.href = "index.html"; 
             }
         });
 
-        // =================================================================================
-        // --- UI HELPER FUNCTIONS ---
-        // =================================================================================
-
-        /**
-         * Shows an error message in the login form.
-         * @param {string} message - The error message to display.
-         */
         function showLoginError(message) {
             loginErrorMessage.textContent = message;
             loginErrorMessage.classList.remove('hidden');
         }
 
-        /** Hides the login form error message. */
         function hideLoginError() {
             loginErrorMessage.textContent = '';
             loginErrorMessage.classList.add('hidden');
         }
 
-        /**
-         * Shows an error message in the sign-up form.
-         * @param {string} message - The error message to display.
-         */
         function showSignupError(message) {
             signupErrorMessage.textContent = message;
             signupErrorMessage.classList.remove('hidden');
         }
 
-        /** Hides the sign-up form error message. */
         function hideSignupError() {
             signupErrorMessage.textContent = '';
             signupErrorMessage.classList.add('hidden');
         }
         
-        /**
-         * Toggles the loading state of a submit button.
-         * @param {HTMLButtonElement} button - The button element.
-         * @param {boolean} isLoading - Whether to show the loading state.
-         * @param {string} text - The text to display on the button.
-         */
         function setLoading(button, isLoading, text) {
             if (!button) return;
             button.disabled = isLoading;
@@ -287,8 +243,6 @@
                 button.textContent = text;
             }
         }
-
     </script>
 </body>
 </html>
-

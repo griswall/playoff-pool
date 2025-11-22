@@ -52,7 +52,8 @@
             background-attachment: fixed;
             color: #f8fafc;
             min-height: 100vh;
-            padding-bottom: 80px; /* Space for mobile footer */
+            /* Ensure padding for mobile footer */
+            padding-bottom: 80px; 
         }
 
         /* Glassmorphism Utilities */
@@ -70,6 +71,7 @@
         }
 
         /* Nav Active State Indicator */
+        .nav-link { position: relative; transition: color 0.2s; }
         .nav-link.active::after {
             content: '';
             position: absolute;
@@ -81,7 +83,6 @@
             box-shadow: 0 -2px 10px var(--accent-glow);
             border-radius: 2px 2px 0 0;
         }
-        .nav-link { position: relative; }
 
         /* COMPACT PLAYER CARD DESIGN */
         .player-card {
@@ -98,14 +99,36 @@
             overflow: hidden;
         }
         
-        .player-card:hover:not(.player-unavailable):not(.player-drafted) {
+        /* Interaction Hover - Only if not disabled */
+        .player-card:not(.player-drafted):not(.player-unavailable):hover {
             transform: translateX(4px);
             border-color: var(--accent);
             background: rgba(30, 41, 59, 0.95);
             box-shadow: -4px 4px 15px rgba(0, 0, 0, 0.3);
         }
 
-        /* Card Content Layout */
+        /* STATES - Using !important to ensure they override default styles */
+        .player-card.player-drafted { 
+            opacity: 0.5 !important; 
+            filter: grayscale(100%) !important; 
+            pointer-events: none !important; 
+            border-color: rgba(255,255,255,0.05) !important;
+        }
+        .player-card.player-unavailable { 
+            opacity: 0.3 !important; 
+            pointer-events: none !important; 
+            background: rgba(0,0,0,0.2) !important;
+        }
+        
+        .draft-flash {
+            animation: flashHighlight 0.5s ease-out;
+        }
+        @keyframes flashHighlight {
+            0% { background-color: var(--accent); border-color: var(--accent); }
+            100% { background-color: var(--card-bg); border-color: var(--card-border); }
+        }
+
+        /* Card Layout */
         .card-left { display: flex; align-items: center; gap: 0.75rem; flex: 1; min-width: 0; }
         .card-right { text-align: right; flex-shrink: 0; }
 
@@ -119,19 +142,7 @@
             background: #1e293b;
         }
 
-        /* States */
-        .player-drafted { opacity: 0.5; filter: grayscale(100%); pointer-events: none; }
-        .player-unavailable { opacity: 0.4; pointer-events: none; }
-        
-        .draft-flash {
-            animation: flashHighlight 0.5s ease-out;
-        }
-        @keyframes flashHighlight {
-            0% { background-color: var(--accent); border-color: var(--accent); }
-            100% { background-color: var(--card-bg); border-color: var(--card-border); }
-        }
-
-        /* MOBILE STICKY FOOTER & DRAWER */
+        /* Sticky Footer & Drawer */
         .mobile-draft-footer {
             position: fixed;
             bottom: 0; left: 0; right: 0;
@@ -146,7 +157,6 @@
             box-shadow: 0 -4px 20px rgba(0,0,0,0.5);
         }
         
-        /* Roster Drawer (Slide Up) */
         .roster-drawer-overlay {
             position: fixed;
             inset: 0;
@@ -180,14 +190,10 @@
         .tab-content.active { display: block; opacity: 1; }
         #draft-team-view.active { display: flex; }
 
-        /* Custom Scrollbar */
+        /* Utilities */
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-
-        /* Loading Overlay */
         .loading-overlay { background: rgba(2, 6, 23, 0.9); z-index: 9999; }
-
-        /* Fallback Avatar */
         .player-fallback-initial {
             display: none;
             background: #334155;
@@ -198,9 +204,9 @@
             font-size: 0.75rem;
         }
         .player-fallback-initial.is-visible { display: flex; }
-        
-        /* Sub Header Visibility */
         .sub-header-hidden { display: none !important; }
+        .hidden-section .player-grid { display: none; }
+        .hidden-section .collapse-icon { transform: rotate(-90deg); }
 
     </style>
 </head>
@@ -220,16 +226,14 @@
 
                 <div class="hidden md:flex items-center gap-6">
                     <nav class="flex space-x-6">
-                        <a href="#draft-team-view" id="nav-draft-team" class="nav-link active text-xs font-bold uppercase tracking-widest text-brand hover:text-white transition-colors">Draft</a>
-                        <a href="#player-scores-view" id="nav-player-scores" class="nav-link text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-white transition-colors">Scores</a>
-                        <a href="#standings-view" id="nav-standings" class="nav-link text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-white transition-colors">Standings</a>
-                        <a href="#rules-view" id="nav-rules" class="nav-link text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-white transition-colors">Rules</a>
+                        <a href="#draft-team-view" id="nav-draft-team" class="nav-link active text-xs font-bold uppercase tracking-widest text-brand hover:text-white">Draft</a>
+                        <a href="#player-scores-view" id="nav-player-scores" class="nav-link text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-white">Scores</a>
+                        <a href="#standings-view" id="nav-standings" class="nav-link text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-white">Standings</a>
+                        <a href="#rules-view" id="nav-rules" class="nav-link text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-white">Rules</a>
                         <a href="admin.html" id="nav-admin" class="hidden text-yellow-400 text-xs font-bold uppercase border border-yellow-400 rounded-full px-3 py-1 hover:bg-yellow-400/10">Admin</a>
                     </nav>
-                    
                     <div id="user-auth-section" class="flex items-center">
                         <a href="login.html" id="login-button" class="bg-white text-black hover:bg-gray-200 px-4 py-1.5 rounded text-xs font-bold transition-colors uppercase">Sign In</a>
-                        
                         <div id="user-profile-section" class="hidden items-center gap-4">
                             <a href="my-teams.html" id="user-email-link" class="text-xs font-bold text-gray-400 hover:text-brand transition-colors uppercase flex items-center gap-2">
                                 <div class="w-6 h-6 rounded-full bg-surface-200 flex items-center justify-center">
@@ -253,8 +257,9 @@
 
     <main class="container mx-auto px-4 sm:px-6 lg:px-8 py-6">
         
-        <div id="draft-team-view" class="tab-content active flex-col xl:flex-row gap-8">
-            <div id="player-pool-container" class="w-full xl:w-3/4 space-y-8 pb-24" role="region" aria-label="Available players"></div>
+        <div id="draft-team-view" class="tab-content active flex flex-col xl:flex-row gap-8">
+            <div id="player-pool-container" class="w-full xl:w-3/4 space-y-8" role="region" aria-label="Available players"></div>
+            
             <aside class="hidden xl:block w-1/4 space-y-6 sticky top-32 self-start">
                 <div class="glass-panel rounded-xl p-6 shadow-2xl">
                     <div class="mb-8">
@@ -304,10 +309,7 @@
             <h2 class="text-2xl font-black text-white mb-6 uppercase italic">Pool <span class="text-brand">Rules</span></h2>
             <div class="prose prose-invert max-w-none text-sm text-gray-300 space-y-4">
                 <p>Draft a team of 10 players under the $38.5M salary cap.</p>
-                <ul class="list-disc pl-5 space-y-1">
-                    <li>1 QB, 3 RB, 3 WR, 1 Flex, 1 D/ST, 1 K</li>
-                    <li>Max 3 players per NFL team.</li>
-                </ul>
+                <ul class="list-disc pl-5 space-y-1"><li>1 QB, 3 RB, 3 WR, 1 Flex, 1 D/ST, 1 K</li><li>Max 3 players per NFL team.</li></ul>
             </div>
         </div>
     </main>
@@ -331,9 +333,7 @@
     <div id="roster-drawer" class="roster-drawer xl:hidden">
         <div class="p-4 border-b border-white/10 flex justify-between items-center bg-surface-900">
             <h3 class="text-sm font-black text-white uppercase tracking-wider">Your Lineup</h3>
-            <button id="close-roster-drawer" class="text-gray-400 hover:text-white">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-            </button>
+            <button id="close-roster-drawer" class="text-gray-400 hover:text-white"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg></button>
         </div>
         <div id="mobile-roster-container" class="flex-1 overflow-y-auto p-4 space-y-2"></div>
         <div class="p-4 bg-surface-900 border-t border-white/10">
@@ -378,7 +378,7 @@
         let supabaseClient;
         try { supabaseClient = getSupabaseClient(); } catch (e) { console.error(e); }
 
-        // --- CONSTANTS & STATE ---
+        // CONSTANTS & STATE
         const CONSTANTS = { INITIAL_SALARY_CAP: 38500000, MAX_PLAYERS_PER_TEAM: 3, ROSTER_SIZE: 10, MAX_ENTRIES_PER_USER: 4, DEBOUNCE_DELAY: 50 };
         const appState = { currentUser: null, currentSession: null, currentSalarySpent: 0, draftedPlayers: {}, roster: { QB: null, RB1: null, RB2: null, RB3: null, WR1: null, WR2: null, WR3: null, FLEX: null, DST: null, K: null }, teamCounts: {}, playersById: {}, allPlayersByPosition: {}, editingTeamId: null };
         const rosterSlotConfig = { QB: { count: 1, display: "QB", slots: ["QB"] }, RB: { count: 3, display: "RB", slots: ["RB1", "RB2", "RB3"] }, WR: { count: 3, display: "WR", slots: ["WR1", "WR2", "WR3"] }, FLEX: { count: 1, display: "FLEX", slots: ["FLEX"] }, DST: { count: 1, display: "D/ST", slots: ["DST"] }, K: { count: 1, display: "K", slots: ["K"]}, TE: { count: 0, display: "TE", slots: [] } };
@@ -409,8 +409,30 @@
 
         let updateUITimeout = null;
 
-        // --- MAIN FUNCTIONS (Defined early to avoid reference errors) ---
+        // --- INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', () => {
+            showLoadingState();
+            checkUser(); 
+            setupEventListeners();
+        });
 
+        function setupEventListeners() {
+            uiElements.playerPoolContainer?.addEventListener('click', handlePlayerPoolClick);
+            uiElements.navLinks?.forEach(link => link.addEventListener('click', handleNavLinkClick));
+            
+            document.getElementById('alert-modal-close-btn')?.addEventListener('click', () => uiElements.alertModal?.classList.add('hidden'));
+            document.getElementById('prompt-modal-cancel-btn')?.addEventListener('click', hidePromptModal);
+            document.getElementById('prompt-modal-confirm-btn')?.addEventListener('click', handleConfirmSubmission);
+            
+            // Mobile Footer
+            document.getElementById('mobile-submit-btn')?.addEventListener('click', handleSubmitTeamClick);
+            
+            uiElements.logoutButton?.addEventListener('click', handleLogout);
+            uiElements.submitTeamButton?.addEventListener('click', handleSubmitTeamClick);
+        }
+
+        // --- CORE FUNCTIONS (Hoisted) ---
+        
         function handleSubmitTeamClick() {
             if (Object.keys(appState.draftedPlayers).length !== CONSTANTS.ROSTER_SIZE) { 
                 showAlertModal("Roster Incomplete", "You must draft 10 players to submit your team."); 
@@ -438,30 +460,15 @@
 
             try {
                 if (!appState.editingTeamId) {
-                    // Check entry limit
-                    const { count, error: countError } = await supabaseClient
-                        .from('user_teams')
-                        .select('*', { count: 'exact', head: true })
-                        .eq('user_id', appState.currentUser.id);
-
+                    const { count, error: countError } = await supabaseClient.from('user_teams').select('*', { count: 'exact', head: true }).eq('user_id', appState.currentUser.id);
                     if (countError) throw countError;
                     if (count >= CONSTANTS.MAX_ENTRIES_PER_USER) throw new Error(`You have reached the ${CONSTANTS.MAX_ENTRIES_PER_USER}-team entry limit.`);
                     
-                    // Create Team
-                    const { data: teamData, error: teamError } = await supabaseClient
-                        .from('user_teams')
-                        .insert({ 
-                            user_id: appState.currentUser.id,
-                            team_name: teamName
-                        })
-                        .select('id') 
-                        .single(); 
-
+                    const { data: teamData, error: teamError } = await supabaseClient.from('user_teams').insert({ user_id: appState.currentUser.id, team_name: teamName }).select('id').single(); 
                     if (teamError) throw teamError;
                     appState.editingTeamId = teamData.id; 
                 }
 
-                // Insert Players
                 const playersToInsert = Object.keys(appState.roster)
                     .filter(slotKey => appState.roster[slotKey])
                     .map(slotKey => ({
@@ -470,7 +477,6 @@
                         roster_slot: slotKey
                     }));
                 
-                // Clear old players (if updating) and insert new ones
                 const { error: deleteError } = await supabaseClient.from('team_players').delete().eq('team_id', appState.editingTeamId);
                 if (deleteError) throw deleteError;
 
@@ -484,7 +490,6 @@
                 } else {
                     resetDraftState(); 
                 }
-
             } catch (error) {
                 console.error("Submit error:", error);
                 showAlertModal("Submit Error", error.message);
@@ -493,30 +498,7 @@
             }
         }
 
-        // --- INITIALIZATION ---
-
-        document.addEventListener('DOMContentLoaded', () => {
-            showLoadingState();
-            checkUser(); 
-            setupEventListeners();
-        });
-
-        function setupEventListeners() {
-            uiElements.playerPoolContainer?.addEventListener('click', handlePlayerPoolClick);
-            uiElements.navLinks?.forEach(link => link.addEventListener('click', handleNavLinkClick));
-            
-            document.getElementById('alert-modal-close-btn')?.addEventListener('click', () => uiElements.alertModal?.classList.add('hidden'));
-            document.getElementById('prompt-modal-cancel-btn')?.addEventListener('click', hidePromptModal);
-            document.getElementById('prompt-modal-confirm-btn')?.addEventListener('click', handleConfirmSubmission);
-            
-            // Mobile Footer Listeners
-            document.getElementById('mobile-submit-btn')?.addEventListener('click', handleSubmitTeamClick);
-            
-            uiElements.logoutButton?.addEventListener('click', handleLogout);
-            uiElements.submitTeamButton?.addEventListener('click', handleSubmitTeamClick);
-        }
-
-        // --- AUTH & DATA ---
+        // --- DATA FETCHING ---
 
         async function checkUser() {
             if (!supabaseClient) { hideLoadingState(); return; }
@@ -552,18 +534,17 @@
         
         async function fetchPlayersAndScores() {
             try {
-                // 1. Fetch Standard Data
                 const [pRes, sRes] = await Promise.all([
                     supabaseClient.from('players').select('*'), 
                     supabaseClient.from('player_scores').select('*')
                 ]);
                 
-                // 2. Fetch Ownership Data (New RPC)
-                const ownRes = await supabaseClient.rpc('get_player_ownership');
-                const ownershipMap = {};
-                if(ownRes.data) {
-                    ownRes.data.forEach(o => ownershipMap[o.player_id] = o.percent);
-                }
+                // Fetch Ownership (Fail-safe if RPC doesn't exist yet)
+                let ownershipMap = {};
+                try {
+                    const ownRes = await supabaseClient.rpc('get_player_ownership');
+                    if(ownRes.data) ownRes.data.forEach(o => ownershipMap[o.player_id] = o.percent);
+                } catch(e) { console.warn("Ownership RPC not found, skipping."); }
 
                 const scoresMap = {};
                 (sRes.data||[]).forEach(s => {
@@ -604,10 +585,11 @@
             } catch(e) { window.location.href="index.html"; } finally { hideLoadingState(); }
         }
 
-        // --- UI LOGIC ---
+        // --- UI RENDERERS ---
 
         function initializeUI() { renderPlayerPool(); renderRosterSlots(); renderSubHeader(); triggerUpdateAllUI(); updateSubHeaderVisibility('nav-draft-team'); }
         function triggerUpdateAllUI() { if (updateUITimeout) clearTimeout(updateUITimeout); updateUITimeout = setTimeout(() => { updateSalaryUI(); updateRosterCount(); renderRosterSlots(); updatePlayerAvailabilityInPool(); checkRosterFull(); }, 50); }
+        
         function updateSalaryUI() { 
             const rem=CONSTANTS.INITIAL_SALARY_CAP-appState.currentSalarySpent; const spent=appState.currentSalarySpent; const fmt=formatToMillions(rem);
             if(uiElements.remainingSalaryEl) uiElements.remainingSalaryEl.textContent=fmt; document.getElementById('spent-amount').textContent=formatToMillions(spent); document.getElementById('mobile-remaining-salary').textContent=fmt; document.getElementById('mobile-drawer-spent').textContent=`${formatToMillions(spent)} / $38.5M`;
@@ -615,7 +597,14 @@
         }
         function updateRosterCount() { const c=Object.keys(appState.draftedPlayers).length; uiElements.rosterCountEl.textContent=c; document.getElementById('mobile-roster-count').textContent=c; }
         function checkRosterFull() { const f=Object.keys(appState.draftedPlayers).length===CONSTANTS.ROSTER_SIZE; uiElements.submitTeamButton.disabled=!f; document.getElementById('mobile-submit-btn').disabled=!f; }
-        function handlePlayerPoolClick(e) { const c=e.target.closest('.player-card'); const h=e.target.closest('.position-group h2'); if(h){h.parentElement.classList.toggle('hidden-section');return;} if(c&&!c.classList.contains('player-unavailable')&&!c.classList.contains('player-drafted')) draftPlayer(appState.playersById[c.dataset.playerId],c); }
+        
+        function handlePlayerPoolClick(e) { 
+            const c=e.target.closest('.player-card'); 
+            const h=e.target.closest('.position-group h2'); 
+            if(h){h.parentElement.classList.toggle('hidden-section');return;} 
+            if(c&&!c.classList.contains('player-unavailable')&&!c.classList.contains('player-drafted')) draftPlayer(appState.playersById[c.dataset.playerId],c); 
+        }
+        
         function draftPlayer(p,c) { 
             if(appState.currentSalarySpent+p.salary>CONSTANTS.INITIAL_SALARY_CAP){showAlertModal('Cap Exceeded','Not enough salary.');return;}
             if((appState.teamCounts[p.team]||0)>=CONSTANTS.MAX_PLAYERS_PER_TEAM){showAlertModal('Limit Reached','Too many from this team.');return;}
@@ -623,7 +612,9 @@
             appState.roster[s]=p; appState.draftedPlayers[p.id]=p; appState.currentSalarySpent+=p.salary; appState.teamCounts[p.team]=(appState.teamCounts[p.team]||0)+1;
             c.classList.add('draft-flash'); setTimeout(()=>c.classList.remove('draft-flash'),500); triggerUpdateAllUI();
         }
+        
         function findAvailableSlot(pos) { const s=rosterSlotConfig[pos]?.slots||[]; for(const k of s) if(!appState.roster[k]) return k; if(['RB','WR','TE'].includes(pos)&&!appState.roster.FLEX) return 'FLEX'; return null; }
+        
         function removePlayer(id,s) { const p=appState.draftedPlayers[id]; if(!p)return; appState.currentSalarySpent-=p.salary; appState.teamCounts[p.team]--; if(appState.teamCounts[p.team]<=0) delete appState.teamCounts[p.team]; delete appState.draftedPlayers[id]; appState.roster[s]=null; triggerUpdateAllUI(); }
         
         function resetDraftState() { appState.currentSalarySpent=0; appState.draftedPlayers={}; appState.roster={QB:null,RB1:null,RB2:null,RB3:null,WR1:null,WR2:null,WR3:null,FLEX:null,DST:null,K:null}; appState.teamCounts={}; appState.editingTeamId=null; triggerUpdateAllUI(); }
@@ -632,16 +623,10 @@
             event.preventDefault();
             const href = event.currentTarget.getAttribute('href');
             if (href.includes('.html')) { window.location.href = href; return; }
-            
             const targetId = href.startsWith('#') ? href.substring(1) : '';
             if (targetId) {
-                uiElements.navLinks.forEach(nav => {
-                    nav.classList.remove('active', 'text-brand');
-                    nav.classList.add('text-gray-400');
-                });
-                event.currentTarget.classList.add('active', 'text-brand');
-                event.currentTarget.classList.remove('text-gray-400');
-                
+                uiElements.navLinks.forEach(nav => { nav.classList.remove('active', 'text-brand'); nav.classList.add('text-gray-400'); });
+                event.currentTarget.classList.add('active', 'text-brand'); event.currentTarget.classList.remove('text-gray-400');
                 uiElements.tabContents.forEach(c => c.classList.toggle('active', c.id === targetId));
                 updateSubHeaderVisibility(event.currentTarget.id);
             }
@@ -657,7 +642,7 @@
             ["QB","RB","WR","TE","DST","K"].forEach(k=>{ 
                 const ps=appState.allPlayersByPosition[k]; if(ps?.length>0){ 
                     const s=document.createElement('section'); s.id=`section-${k}`; s.className='position-group mb-6'; 
-                    s.innerHTML=`<h2 class="text-xl font-black text-white mb-3 flex items-center gap-3 uppercase italic tracking-tight sticky top-28 bg-surface-900/95 p-2 z-20 backdrop-blur"><span>${k}</span><span class="h-px flex-grow bg-white/10"></span></h2><div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 player-grid"></div>`; 
+                    s.innerHTML=`<h2 class="text-xl font-black text-white mb-3 flex items-center gap-3 uppercase italic tracking-tight sticky top-28 bg-surface-900/95 p-2 z-20 backdrop-blur cursor-pointer"><span>${k}</span><span class="h-px flex-grow bg-white/10"></span><svg class="collapse-icon w-5 h-5 text-gray-500 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg></h2><div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 player-grid transition-all"></div>`; 
                     const g=s.querySelector('.player-grid'); ps.sort((a,b)=>b.salary-a.salary).forEach(p=>g.appendChild(createPlayerCard(p))); c.appendChild(s); 
                 } 
             }); 
@@ -670,49 +655,82 @@
             card.dataset.playerId = String(player.id);
             card.setAttribute('role', 'button');
             
-            const leftDiv = document.createElement('div');
-            leftDiv.className = 'card-left';
-            const imgContainer = document.createElement('div');
-            imgContainer.className = 'relative w-[42px] h-[42px] shrink-0';
+            const leftDiv = document.createElement('div'); leftDiv.className = 'card-left';
+            const imgContainer = document.createElement('div'); imgContainer.className = 'relative w-[42px] h-[42px] shrink-0';
             const img = document.createElement('img');
             img.src = player.image_url || (player.position === 'DST' ? `https://a.espncdn.com/i/teamlogos/nfl/500/${player.espn_id||'0'}.png` : `https://a.espncdn.com/i/headshots/nfl/players/full/${player.espn_id||'0'}.png`);
-            img.className = 'player-avatar w-full h-full';
-            img.loading = 'lazy';
-            const fallback = document.createElement('div');
-            fallback.className = 'player-fallback-initial player-avatar absolute inset-0 w-full h-full';
-            fallback.textContent = (player.name?.charAt(0) || '?');
-            img.onerror = () => { img.style.display='none'; fallback.classList.add('is-visible'); };
-            img.onload = () => { fallback.classList.remove('is-visible'); };
-            imgContainer.appendChild(img);
-            imgContainer.appendChild(fallback);
-            const infoDiv = document.createElement('div');
-            infoDiv.className = 'flex flex-col min-w-0';
-            const nameEl = document.createElement('span');
-            nameEl.className = 'text-sm font-bold text-white leading-tight group-hover:text-brand transition-colors truncate';
-            nameEl.textContent = player.name;
-            const metaEl = document.createElement('span');
-            metaEl.className = 'text-[10px] font-bold text-gray-500 uppercase tracking-wide mt-0.5 truncate';
-            metaEl.textContent = `${player.position} • ${player.team}`;
-            infoDiv.appendChild(nameEl);
-            infoDiv.appendChild(metaEl);
-            leftDiv.appendChild(imgContainer);
-            leftDiv.appendChild(infoDiv);
-            const rightDiv = document.createElement('div');
-            rightDiv.className = 'card-right';
-            const salaryEl = document.createElement('div');
-            salaryEl.className = 'text-sm font-mono font-bold text-brand';
-            salaryEl.textContent = formatToMillions(player.salary);
-            const addIcon = document.createElement('div');
-            addIcon.className = 'text-[10px] text-gray-500 hidden group-hover:block mt-1';
-            addIcon.textContent = 'ADD +';
-            rightDiv.appendChild(salaryEl);
-            rightDiv.appendChild(addIcon);
-            card.appendChild(leftDiv);
-            card.appendChild(rightDiv);
+            img.className = 'player-avatar w-full h-full'; img.loading = 'lazy';
+            const fallback = document.createElement('div'); fallback.className = 'player-fallback-initial player-avatar absolute inset-0 w-full h-full'; fallback.textContent = (player.name?.charAt(0) || '?');
+            img.onerror = () => { img.style.display='none'; fallback.classList.add('is-visible'); }; img.onload = () => { fallback.classList.remove('is-visible'); };
+            imgContainer.appendChild(img); imgContainer.appendChild(fallback);
+            
+            const infoDiv = document.createElement('div'); infoDiv.className = 'flex flex-col min-w-0';
+            const nameEl = document.createElement('span'); nameEl.className = 'text-sm font-bold text-white leading-tight group-hover:text-brand transition-colors truncate'; nameEl.textContent = player.name;
+            const metaEl = document.createElement('span'); metaEl.className = 'text-[10px] font-bold text-gray-500 uppercase tracking-wide mt-0.5 truncate'; metaEl.textContent = `${player.position} • ${player.team}`;
+            infoDiv.appendChild(nameEl); infoDiv.appendChild(metaEl);
+            leftDiv.appendChild(imgContainer); leftDiv.appendChild(infoDiv);
+            
+            const rightDiv = document.createElement('div'); rightDiv.className = 'card-right';
+            const salaryEl = document.createElement('div'); salaryEl.className = 'text-sm font-mono font-bold text-brand'; salaryEl.textContent = formatToMillions(player.salary);
+            const addIcon = document.createElement('div'); addIcon.className = 'text-[10px] text-gray-500 hidden group-hover:block mt-1'; addIcon.textContent = 'ADD +';
+            rightDiv.appendChild(salaryEl); rightDiv.appendChild(addIcon);
+            
+            card.appendChild(leftDiv); card.appendChild(rightDiv);
             return card;
         }
 
-        function updatePlayerAvailabilityInPool() { const rem=CONSTANTS.INITIAL_SALARY_CAP-appState.currentSalarySpent; document.querySelectorAll('.player-card').forEach(c=>{ const p=appState.playersById[c.dataset.playerId]; if(!p)return; c.classList.remove('player-drafted','player-unavailable'); if(appState.draftedPlayers[p.id])c.classList.add('player-drafted'); else if((appState.teamCounts[p.team]||0)>=CONSTANTS.MAX_PLAYERS_PER_TEAM)c.classList.add('player-unavailable'); else if(!findAvailableSlot(p.position))c.classList.add('player-unavailable'); else if(p.salary>rem)c.classList.add('player-unavailable'); }); }
+        function renderRosterSlots() {
+            const desktopContainer = uiElements.rosterSlotsContainer;
+            const mobileContainer = document.getElementById('mobile-roster-container');
+            if (desktopContainer) desktopContainer.innerHTML = '';
+            if (mobileContainer) mobileContainer.innerHTML = '';
+            const slotOrder = ["QB", "RB1", "RB2", "RB3", "WR1", "WR2", "WR3", "FLEX", "DST", "K"];
+            const createSlotEl = (slotKey, isMobile) => {
+                const playerInSlot = appState.roster[slotKey];
+                const slotDiv = document.createElement('div');
+                slotDiv.className = isMobile ? 'flex justify-between items-center p-3 bg-surface-800 rounded-lg border border-white/5' : 'flex justify-between items-center p-2 bg-surface-800/50 border border-white/5 rounded hover:bg-surface-800 group transition-colors';
+                if (playerInSlot) {
+                    const left = document.createElement('div'); left.className = 'flex items-center gap-3';
+                    const label = document.createElement('span'); label.className = 'text-[10px] font-bold text-gray-500 uppercase w-8'; label.textContent = slotKey.replace(/\d/, ''); 
+                    const name = document.createElement('span'); name.className = 'font-bold text-sm text-white truncate max-w-[120px]'; name.textContent = playerInSlot.name;
+                    left.appendChild(label); left.appendChild(name);
+                    const right = document.createElement('div'); right.className = 'flex items-center gap-3';
+                    const sal = document.createElement('span'); sal.className = 'font-mono text-xs text-brand'; sal.textContent = formatToMillions(playerInSlot.salary);
+                    const removeBtn = document.createElement('button'); removeBtn.className = 'text-gray-500 hover:text-red-500 p-1'; removeBtn.innerHTML = '✕';
+                    removeBtn.onclick = (e) => { e.stopPropagation(); removePlayer(playerInSlot.id, slotKey); };
+                    right.appendChild(sal); right.appendChild(removeBtn);
+                    slotDiv.appendChild(left); slotDiv.appendChild(right);
+                    if(!isMobile) slotDiv.classList.add('border-brand/20'); 
+                } else {
+                    const label = document.createElement('span'); label.className = 'text-[10px] font-bold text-gray-600 uppercase w-8'; label.textContent = slotKey.replace(/\d/, '');
+                    const emptyText = document.createElement('span'); emptyText.className = 'text-xs text-gray-700 italic'; emptyText.textContent = 'Empty';
+                    slotDiv.appendChild(label); slotDiv.appendChild(emptyText);
+                }
+                return slotDiv;
+            };
+            slotOrder.forEach(slotKey => {
+                if (desktopContainer) desktopContainer.appendChild(createSlotEl(slotKey, false));
+                if (mobileContainer) mobileContainer.appendChild(createSlotEl(slotKey, true));
+            });
+        }
+
+        function updatePlayerAvailabilityInPool() { 
+            const rem = CONSTANTS.INITIAL_SALARY_CAP - appState.currentSalarySpent; 
+            document.querySelectorAll('.player-card').forEach(c => { 
+                const p = appState.playersById[c.dataset.playerId]; 
+                if (!p) return; 
+                c.classList.remove('player-drafted', 'player-unavailable'); 
+                
+                if (appState.draftedPlayers[p.id]) {
+                    c.classList.add('player-drafted'); 
+                } else {
+                    if ((appState.teamCounts[p.team]||0) >= CONSTANTS.MAX_PLAYERS_PER_TEAM) c.classList.add('player-unavailable'); 
+                    else if (!findAvailableSlot(p.position)) c.classList.add('player-unavailable'); 
+                    else if (p.salary > rem) c.classList.add('player-unavailable'); 
+                }
+            }); 
+        }
+
         function renderSubHeader() { if(!uiElements.subHeader)return; const ks=Object.keys(appState.allPlayersByPosition); uiElements.subHeader.innerHTML=`<div class="container mx-auto px-4 sm:px-6 lg:px-8"><div class="flex items-center gap-2 overflow-x-auto py-3 no-scrollbar">${ks.map(k=>`<a href="#section-${k}" class="flex-shrink-0 px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wide border border-white/10 bg-surface-800 text-gray-400 hover:text-white hover:border-brand hover:bg-surface-700 transition-all">${k}</a>`).join('')}</div></div>`; }
         function formatToMillions(v) { if(typeof v!=='number'||isNaN(v))return'$0.0M'; return`$${(v/1000000).toFixed(1)}M`; }
         function showLoadingState(s=true) { document.getElementById('loading-overlay').style.display=s?'flex':'none'; }
@@ -720,55 +738,35 @@
         function showAlertModal(t,m) { document.getElementById('alert-modal-title').textContent=t; document.getElementById('alert-modal-message').textContent=m; document.getElementById('alert-modal').classList.remove('hidden'); }
         function showPromptModal() { document.getElementById('prompt-modal').classList.remove('hidden'); }
         function hidePromptModal() { document.getElementById('prompt-modal').classList.add('hidden'); }
-        
-        // Mobile Drawer
-        const drawer = document.getElementById('roster-drawer');
-        const overlay = document.getElementById('roster-drawer-overlay');
-        function toggleRosterDrawer(open) {
-            if (open) { drawer.classList.add('open'); overlay.classList.add('open'); document.body.style.overflow = 'hidden'; } 
-            else { drawer.classList.remove('open'); overlay.classList.remove('open'); document.body.style.overflow = ''; }
-        }
-        document.getElementById('open-roster-drawer').addEventListener('click', () => toggleRosterDrawer(true));
-        document.getElementById('close-roster-drawer').addEventListener('click', () => toggleRosterDrawer(false));
-        overlay.addEventListener('click', () => toggleRosterDrawer(false));
 
-        // Scores Tab
         function renderPlayerScoresTab() {
             const container = uiElements.playerScoresList; if(!container) return; container.innerHTML = '';
             ["QB", "RB", "WR", "TE", "DST", "K"].forEach(pos => {
                 const players = appState.allPlayersByPosition[pos]; if(!players?.length) return;
                 const wrapper = document.createElement('div'); wrapper.className = 'glass-panel p-4 md:p-6 rounded-xl mb-8';
                 wrapper.innerHTML = `<h3 class="text-lg font-black text-brand mb-4 border-b border-white/5 pb-2">${pos}</h3>`;
-                const table = document.createElement('table'); 
-                table.className = 'w-full text-sm text-left text-gray-400';
+                const table = document.createElement('table'); table.className = 'w-full text-sm text-left text-gray-400';
                 table.innerHTML = `
                     <thead class="text-xs uppercase text-gray-500">
                         <tr>
-                            <th class="py-2">Player</th>
-                            <th class="text-center">Own %</th>
-                            <th class="text-center">WC</th>
-                            <th class="text-center">DIV</th>
-                            <th class="text-center">CONF</th>
-                            <th class="text-center">SB</th>
+                            <th class="py-2">Player</th><th class="text-center">Own %</th>
+                            <th class="text-center">WC</th><th class="text-center">DIV</th>
+                            <th class="text-center">CONF</th><th class="text-center">SB</th>
                             <th class="text-right">Total</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-white/5">
                         ${players.sort((a,b)=>b.totalPoints-a.totalPoints).map(p => `
                             <tr>
-                                <td class="py-2 text-white font-medium text-xs md:text-sm">
-                                    ${p.name} <span class="text-gray-600 ml-1 text-[10px]">${p.team}</span>
-                                </td>
+                                <td class="py-2 text-white font-medium text-xs md:text-sm">${p.name} <span class="text-gray-600 ml-1 text-[10px]">${p.team}</span></td>
                                 <td class="text-center text-xs font-mono ${p.ownership > 25 ? 'text-brand' : 'text-gray-500'}">${p.ownership}%</td>
                                 <td class="text-center font-mono text-xs">${p.stats.WC || '-'}</td>
                                 <td class="text-center font-mono text-xs">${p.stats.DIV || '-'}</td>
                                 <td class="text-center font-mono text-xs">${p.stats.CONF || '-'}</td>
                                 <td class="text-center font-mono text-xs">${p.stats.SB || '-'}</td>
                                 <td class="text-right font-mono text-brand font-bold">${p.totalPoints.toFixed(1)}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                `;
+                            </tr>`).join('')}
+                    </tbody>`;
                 wrapper.appendChild(table); container.appendChild(wrapper);
             });
         }

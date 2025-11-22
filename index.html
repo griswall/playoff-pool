@@ -375,8 +375,294 @@
     <script type="module">
         import { getSupabaseClient, checkIsAdmin, clearAdminCache } from './scripts/supabaseClient.js';
 
-        // ... UI Renderers (Player Card, Roster Slots) ...
-        // (Kept concise, same as previous but with small tweaks for stability)
+        let supabaseClient;
+        try { supabaseClient = getSupabaseClient(); } catch (e) { console.error(e); }
+
+        // --- CONSTANTS & STATE ---
+        const CONSTANTS = { INITIAL_SALARY_CAP: 38500000, MAX_PLAYERS_PER_TEAM: 3, ROSTER_SIZE: 10, MAX_ENTRIES_PER_USER: 4, DEBOUNCE_DELAY: 50 };
+        const appState = { currentUser: null, currentSession: null, currentSalarySpent: 0, draftedPlayers: {}, roster: { QB: null, RB1: null, RB2: null, RB3: null, WR1: null, WR2: null, WR3: null, FLEX: null, DST: null, K: null }, teamCounts: {}, playersById: {}, allPlayersByPosition: {}, editingTeamId: null };
+        const rosterSlotConfig = { QB: { count: 1, display: "QB", slots: ["QB"] }, RB: { count: 3, display: "RB", slots: ["RB1", "RB2", "RB3"] }, WR: { count: 3, display: "WR", slots: ["WR1", "WR2", "WR3"] }, FLEX: { count: 1, display: "FLEX", slots: ["FLEX"] }, DST: { count: 1, display: "D/ST", slots: ["DST"] }, K: { count: 1, display: "K", slots: ["K"]}, TE: { count: 0, display: "TE", slots: [] } };
+        
+        const uiElements = {
+            playerPoolContainer: document.getElementById('player-pool-container'),
+            rosterSlotsContainer: document.getElementById('roster-slots-container'),
+            remainingSalaryEl: document.getElementById('remaining-salary'),
+            salaryProgressBar: document.getElementById('salary-progress-bar'),
+            rosterCountEl: document.getElementById('roster-count'),
+            submitTeamButton: document.getElementById('submit-team-button'),
+            submitTeamMessage: document.getElementById('submit-team-message'),
+            navLinks: document.querySelectorAll('.nav-link'),
+            tabContents: document.querySelectorAll('.tab-content'),
+            alertModal: document.getElementById('alert-modal'),
+            subHeader: document.getElementById('sub-header'),
+            loadingOverlay: document.getElementById('loading-overlay'),
+            playerScoresList: document.getElementById('player-scores-list'),
+            standingsTableBody: document.querySelector('#standings-table tbody'),
+            userAuthSection: document.getElementById('user-auth-section'),
+            loginButton: document.getElementById('login-button'),
+            userProfileSection: document.getElementById('user-profile-section'),
+            userEmailDisplay: document.getElementById('user-email-display'),
+            logoutButton: document.getElementById('logout-button'),
+            promptModal: document.getElementById('prompt-modal'),
+            adminNavButton: document.getElementById('nav-admin')
+        };
+
+        let updateUITimeout = null;
+
+        // --- MAIN FUNCTIONS (Defined early to avoid reference errors) ---
+
+        function handleSubmitTeamClick() {
+            if (Object.keys(appState.draftedPlayers).length !== CONSTANTS.ROSTER_SIZE) { 
+                showAlertModal("Roster Incomplete", "You must draft 10 players to submit your team."); 
+                return; 
+            }
+            if (appState.editingTeamId) {
+                handleConfirmSubmission();
+            } else {
+                showPromptModal();
+            }
+        }
+
+        async function handleConfirmSubmission() {
+            const nameInput = document.getElementById('prompt-modal-input');
+            let teamName = nameInput.value.trim();
+            
+            if (!appState.editingTeamId && !teamName) {
+                document.getElementById('prompt-modal-error').textContent = 'Team name cannot be empty.';
+                document.getElementById('prompt-modal-error').classList.remove('hidden');
+                return;
+            }
+            
+            showLoadingState();
+            hidePromptModal();
+
+            try {
+                if (!appState.editingTeamId) {
+                    // Check entry limit
+                    const { count, error: countError } = await supabaseClient
+                        .from('user_teams')
+                        .select('*', { count: 'exact', head: true })
+                        .eq('user_id', appState.currentUser.id);
+
+                    if (countError) throw countError;
+                    if (count >= CONSTANTS.MAX_ENTRIES_PER_USER) throw new Error(`You have reached the ${CONSTANTS.MAX_ENTRIES_PER_USER}-team entry limit.`);
+                    
+                    // Create Team
+                    const { data: teamData, error: teamError } = await supabaseClient
+                        .from('user_teams')
+                        .insert({ 
+                            user_id: appState.currentUser.id,
+                            team_name: teamName
+                        })
+                        .select('id') 
+                        .single(); 
+
+                    if (teamError) throw teamError;
+                    appState.editingTeamId = teamData.id; 
+                }
+
+                // Insert Players
+                const playersToInsert = Object.keys(appState.roster)
+                    .filter(slotKey => appState.roster[slotKey])
+                    .map(slotKey => ({
+                        team_id: appState.editingTeamId,
+                        player_id: appState.roster[slotKey].id,
+                        roster_slot: slotKey
+                    }));
+                
+                // Clear old players (if updating) and insert new ones
+                const { error: deleteError } = await supabaseClient.from('team_players').delete().eq('team_id', appState.editingTeamId);
+                if (deleteError) throw deleteError;
+
+                const { error: playersError } = await supabaseClient.from('team_players').insert(playersToInsert);
+                if (playersError) throw playersError;
+
+                showAlertModal("Success!", appState.editingTeamId ? `Team updated.` : `Team submitted.`);
+                
+                if (window.location.search.includes('edit_team_id')) {
+                    setTimeout(() => window.location.href = "my-teams.html", 1500);
+                } else {
+                    resetDraftState(); 
+                }
+
+            } catch (error) {
+                console.error("Submit error:", error);
+                showAlertModal("Submit Error", error.message);
+            } finally {
+                hideLoadingState();
+            }
+        }
+
+        // --- INITIALIZATION ---
+
+        document.addEventListener('DOMContentLoaded', () => {
+            showLoadingState();
+            checkUser(); 
+            setupEventListeners();
+        });
+
+        function setupEventListeners() {
+            uiElements.playerPoolContainer?.addEventListener('click', handlePlayerPoolClick);
+            uiElements.navLinks?.forEach(link => link.addEventListener('click', handleNavLinkClick));
+            
+            document.getElementById('alert-modal-close-btn')?.addEventListener('click', () => uiElements.alertModal?.classList.add('hidden'));
+            document.getElementById('prompt-modal-cancel-btn')?.addEventListener('click', hidePromptModal);
+            document.getElementById('prompt-modal-confirm-btn')?.addEventListener('click', handleConfirmSubmission);
+            
+            // Mobile Footer Listeners
+            document.getElementById('mobile-submit-btn')?.addEventListener('click', handleSubmitTeamClick);
+            
+            uiElements.logoutButton?.addEventListener('click', handleLogout);
+            uiElements.submitTeamButton?.addEventListener('click', handleSubmitTeamClick);
+        }
+
+        // --- AUTH & DATA ---
+
+        async function checkUser() {
+            if (!supabaseClient) { hideLoadingState(); return; }
+            
+            const { data, error } = await supabaseClient.auth.getSession();
+            if (error || !data.session) {
+                window.location.href = "login.html"; 
+            } else {
+                appState.currentUser = data.session.user;
+                appState.currentSession = data.session;
+                updateAuthUI(true, data.session.user.email);
+                checkAdminStatus();
+
+                const urlParams = new URLSearchParams(window.location.search);
+                const teamIdToEdit = urlParams.get('edit_team_id');
+
+                await fetchPlayersAndScores(); 
+
+                if (teamIdToEdit) {
+                    await loadTeamForEditing(teamIdToEdit);
+                } else {
+                    hideLoadingState();
+                }
+                
+                renderPlayerScoresTab(); 
+                fetchAndRenderStandings(); 
+            }
+        }
+        
+        async function checkAdminStatus() { const isAdmin = await checkIsAdmin(); if (isAdmin) uiElements.adminNavButton?.classList.remove('hidden'); }
+        function updateAuthUI(loggedIn, email) { if(loggedIn) { uiElements.loginButton.classList.add('hidden'); uiElements.userProfileSection.classList.remove('hidden'); uiElements.userProfileSection.style.display='flex'; uiElements.userEmailDisplay.textContent=email; } }
+        async function handleLogout() { showLoadingState(); clearAdminCache(); await supabaseClient.auth.signOut(); window.location.href="login.html"; }
+        
+        async function fetchPlayersAndScores() {
+            try {
+                // 1. Fetch Standard Data
+                const [pRes, sRes] = await Promise.all([
+                    supabaseClient.from('players').select('*'), 
+                    supabaseClient.from('player_scores').select('*')
+                ]);
+                
+                // 2. Fetch Ownership Data (New RPC)
+                const ownRes = await supabaseClient.rpc('get_player_ownership');
+                const ownershipMap = {};
+                if(ownRes.data) {
+                    ownRes.data.forEach(o => ownershipMap[o.player_id] = o.percent);
+                }
+
+                const scoresMap = {};
+                (sRes.data||[]).forEach(s => {
+                    if(!scoresMap[s.player_id]) scoresMap[s.player_id] = { WC:0, DIV:0, CONF:0, SB:0, Total:0 };
+                    scoresMap[s.player_id][s.playoff_round] = s.points;
+                    scoresMap[s.player_id].Total += s.points;
+                });
+
+                appState.allPlayersByPosition = { QB: [], RB: [], WR: [], TE: [], DST: [], K: [] };
+                
+                pRes.data.forEach(p => {
+                    const s = scoresMap[p.id] || { WC:0, DIV:0, CONF:0, SB:0, Total:0 };
+                    const ownPct = ownershipMap[p.id] || 0;
+                    
+                    const player = { 
+                        ...p, 
+                        imageUrl: p.image_url, 
+                        stats: s, 
+                        ownership: ownPct,
+                        totalPoints: s.Total
+                    };
+                    if (appState.allPlayersByPosition[player.position]) { 
+                        appState.allPlayersByPosition[player.position].push(player); 
+                        appState.playersById[player.id] = player; 
+                    }
+                });
+                initializeUI();
+            } catch(e) { console.error(e); }
+        }
+
+        async function loadTeamForEditing(teamId) {
+            showLoadingState();
+            try {
+                const { data } = await supabaseClient.from('user_teams').select(`id, team_name, user_id, team_players(roster_slot, players(id))`).eq('id', teamId).single();
+                resetDraftState(); appState.editingTeamId = data.id;
+                data.team_players.forEach(tp => { const p = appState.playersById[tp.players.id]; if(p) { appState.roster[tp.roster_slot]=p; appState.draftedPlayers[p.id]=p; appState.currentSalarySpent+=p.salary; appState.teamCounts[p.team]=(appState.teamCounts[p.team]||0)+1; } });
+                uiElements.submitTeamButton.textContent="Update Team"; document.getElementById('mobile-submit-btn').textContent="Update"; triggerUpdateAllUI();
+            } catch(e) { window.location.href="index.html"; } finally { hideLoadingState(); }
+        }
+
+        // --- UI LOGIC ---
+
+        function initializeUI() { renderPlayerPool(); renderRosterSlots(); renderSubHeader(); triggerUpdateAllUI(); updateSubHeaderVisibility('nav-draft-team'); }
+        function triggerUpdateAllUI() { if (updateUITimeout) clearTimeout(updateUITimeout); updateUITimeout = setTimeout(() => { updateSalaryUI(); updateRosterCount(); renderRosterSlots(); updatePlayerAvailabilityInPool(); checkRosterFull(); }, 50); }
+        function updateSalaryUI() { 
+            const rem=CONSTANTS.INITIAL_SALARY_CAP-appState.currentSalarySpent; const spent=appState.currentSalarySpent; const fmt=formatToMillions(rem);
+            if(uiElements.remainingSalaryEl) uiElements.remainingSalaryEl.textContent=fmt; document.getElementById('spent-amount').textContent=formatToMillions(spent); document.getElementById('mobile-remaining-salary').textContent=fmt; document.getElementById('mobile-drawer-spent').textContent=`${formatToMillions(spent)} / $38.5M`;
+            const pct=(spent/CONSTANTS.INITIAL_SALARY_CAP)*100; if(uiElements.salaryProgressBar) uiElements.salaryProgressBar.style.width=`${Math.min(pct,100)}%`; document.getElementById('mobile-drawer-progress').style.width=`${Math.min(pct,100)}%`;
+        }
+        function updateRosterCount() { const c=Object.keys(appState.draftedPlayers).length; uiElements.rosterCountEl.textContent=c; document.getElementById('mobile-roster-count').textContent=c; }
+        function checkRosterFull() { const f=Object.keys(appState.draftedPlayers).length===CONSTANTS.ROSTER_SIZE; uiElements.submitTeamButton.disabled=!f; document.getElementById('mobile-submit-btn').disabled=!f; }
+        function handlePlayerPoolClick(e) { const c=e.target.closest('.player-card'); const h=e.target.closest('.position-group h2'); if(h){h.parentElement.classList.toggle('hidden-section');return;} if(c&&!c.classList.contains('player-unavailable')&&!c.classList.contains('player-drafted')) draftPlayer(appState.playersById[c.dataset.playerId],c); }
+        function draftPlayer(p,c) { 
+            if(appState.currentSalarySpent+p.salary>CONSTANTS.INITIAL_SALARY_CAP){showAlertModal('Cap Exceeded','Not enough salary.');return;}
+            if((appState.teamCounts[p.team]||0)>=CONSTANTS.MAX_PLAYERS_PER_TEAM){showAlertModal('Limit Reached','Too many from this team.');return;}
+            const s=findAvailableSlot(p.position); if(!s){showAlertModal('Position Full','No slot.');return;}
+            appState.roster[s]=p; appState.draftedPlayers[p.id]=p; appState.currentSalarySpent+=p.salary; appState.teamCounts[p.team]=(appState.teamCounts[p.team]||0)+1;
+            c.classList.add('draft-flash'); setTimeout(()=>c.classList.remove('draft-flash'),500); triggerUpdateAllUI();
+        }
+        function findAvailableSlot(pos) { const s=rosterSlotConfig[pos]?.slots||[]; for(const k of s) if(!appState.roster[k]) return k; if(['RB','WR','TE'].includes(pos)&&!appState.roster.FLEX) return 'FLEX'; return null; }
+        function removePlayer(id,s) { const p=appState.draftedPlayers[id]; if(!p)return; appState.currentSalarySpent-=p.salary; appState.teamCounts[p.team]--; if(appState.teamCounts[p.team]<=0) delete appState.teamCounts[p.team]; delete appState.draftedPlayers[id]; appState.roster[s]=null; triggerUpdateAllUI(); }
+        
+        function resetDraftState() { appState.currentSalarySpent=0; appState.draftedPlayers={}; appState.roster={QB:null,RB1:null,RB2:null,RB3:null,WR1:null,WR2:null,WR3:null,FLEX:null,DST:null,K:null}; appState.teamCounts={}; appState.editingTeamId=null; triggerUpdateAllUI(); }
+
+        function handleNavLinkClick(event) {
+            event.preventDefault();
+            const href = event.currentTarget.getAttribute('href');
+            if (href.includes('.html')) { window.location.href = href; return; }
+            
+            const targetId = href.startsWith('#') ? href.substring(1) : '';
+            if (targetId) {
+                uiElements.navLinks.forEach(nav => {
+                    nav.classList.remove('active', 'text-brand');
+                    nav.classList.add('text-gray-400');
+                });
+                event.currentTarget.classList.add('active', 'text-brand');
+                event.currentTarget.classList.remove('text-gray-400');
+                
+                uiElements.tabContents.forEach(c => c.classList.toggle('active', c.id === targetId));
+                updateSubHeaderVisibility(event.currentTarget.id);
+            }
+        }
+
+        function updateSubHeaderVisibility(activeLinkId) {
+            if (activeLinkId === 'nav-draft-team') uiElements.subHeader.classList.remove('sub-header-hidden');
+            else uiElements.subHeader.classList.add('sub-header-hidden');
+        }
+
+        function renderPlayerPool() { 
+            const c=uiElements.playerPoolContainer; if(!c)return; c.innerHTML=''; 
+            ["QB","RB","WR","TE","DST","K"].forEach(k=>{ 
+                const ps=appState.allPlayersByPosition[k]; if(ps?.length>0){ 
+                    const s=document.createElement('section'); s.id=`section-${k}`; s.className='position-group mb-6'; 
+                    s.innerHTML=`<h2 class="text-xl font-black text-white mb-3 flex items-center gap-3 uppercase italic tracking-tight sticky top-28 bg-surface-900/95 p-2 z-20 backdrop-blur"><span>${k}</span><span class="h-px flex-grow bg-white/10"></span></h2><div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 player-grid"></div>`; 
+                    const g=s.querySelector('.player-grid'); ps.sort((a,b)=>b.salary-a.salary).forEach(p=>g.appendChild(createPlayerCard(p))); c.appendChild(s); 
+                } 
+            }); 
+        }
+
         function createPlayerCard(player) {
             if (!player || !player.id) return null;
             const card = document.createElement('div');
@@ -426,59 +712,15 @@
             return card;
         }
 
-        function renderRosterSlots() {
-            const desktopContainer = uiElements.rosterSlotsContainer;
-            const mobileContainer = document.getElementById('mobile-roster-container');
-            if (desktopContainer) desktopContainer.innerHTML = '';
-            if (mobileContainer) mobileContainer.innerHTML = '';
-            const slotOrder = ["QB", "RB1", "RB2", "RB3", "WR1", "WR2", "WR3", "FLEX", "DST", "K"];
-            const createSlotEl = (slotKey, isMobile) => {
-                const playerInSlot = appState.roster[slotKey];
-                const slotDiv = document.createElement('div');
-                slotDiv.className = isMobile ? 'flex justify-between items-center p-3 bg-surface-800 rounded-lg border border-white/5' : 'flex justify-between items-center p-2 bg-surface-800/50 border border-white/5 rounded hover:bg-surface-800 group transition-colors';
-                if (playerInSlot) {
-                    const left = document.createElement('div');
-                    left.className = 'flex items-center gap-3';
-                    const label = document.createElement('span');
-                    label.className = 'text-[10px] font-bold text-gray-500 uppercase w-8';
-                    label.textContent = slotKey.replace(/\d/, ''); 
-                    const name = document.createElement('span');
-                    name.className = 'font-bold text-sm text-white truncate max-w-[120px]';
-                    name.textContent = playerInSlot.name;
-                    left.appendChild(label);
-                    left.appendChild(name);
-                    const right = document.createElement('div');
-                    right.className = 'flex items-center gap-3';
-                    const sal = document.createElement('span');
-                    sal.className = 'font-mono text-xs text-brand';
-                    sal.textContent = formatToMillions(playerInSlot.salary);
-                    const removeBtn = document.createElement('button');
-                    removeBtn.className = 'text-gray-500 hover:text-red-500 p-1';
-                    removeBtn.innerHTML = '✕';
-                    removeBtn.onclick = (e) => { e.stopPropagation(); removePlayer(playerInSlot.id, slotKey); };
-                    right.appendChild(sal);
-                    right.appendChild(removeBtn);
-                    slotDiv.appendChild(left);
-                    slotDiv.appendChild(right);
-                    if(!isMobile) slotDiv.classList.add('border-brand/20'); 
-                } else {
-                    const label = document.createElement('span');
-                    label.className = 'text-[10px] font-bold text-gray-600 uppercase w-8';
-                    label.textContent = slotKey.replace(/\d/, '');
-                    const emptyText = document.createElement('span');
-                    emptyText.className = 'text-xs text-gray-700 italic';
-                    emptyText.textContent = 'Empty';
-                    slotDiv.appendChild(label);
-                    slotDiv.appendChild(emptyText);
-                }
-                return slotDiv;
-            };
-            slotOrder.forEach(slotKey => {
-                if (desktopContainer) desktopContainer.appendChild(createSlotEl(slotKey, false));
-                if (mobileContainer) mobileContainer.appendChild(createSlotEl(slotKey, true));
-            });
-        }
-
+        function updatePlayerAvailabilityInPool() { const rem=CONSTANTS.INITIAL_SALARY_CAP-appState.currentSalarySpent; document.querySelectorAll('.player-card').forEach(c=>{ const p=appState.playersById[c.dataset.playerId]; if(!p)return; c.classList.remove('player-drafted','player-unavailable'); if(appState.draftedPlayers[p.id])c.classList.add('player-drafted'); else if((appState.teamCounts[p.team]||0)>=CONSTANTS.MAX_PLAYERS_PER_TEAM)c.classList.add('player-unavailable'); else if(!findAvailableSlot(p.position))c.classList.add('player-unavailable'); else if(p.salary>rem)c.classList.add('player-unavailable'); }); }
+        function renderSubHeader() { if(!uiElements.subHeader)return; const ks=Object.keys(appState.allPlayersByPosition); uiElements.subHeader.innerHTML=`<div class="container mx-auto px-4 sm:px-6 lg:px-8"><div class="flex items-center gap-2 overflow-x-auto py-3 no-scrollbar">${ks.map(k=>`<a href="#section-${k}" class="flex-shrink-0 px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wide border border-white/10 bg-surface-800 text-gray-400 hover:text-white hover:border-brand hover:bg-surface-700 transition-all">${k}</a>`).join('')}</div></div>`; }
+        function formatToMillions(v) { if(typeof v!=='number'||isNaN(v))return'$0.0M'; return`$${(v/1000000).toFixed(1)}M`; }
+        function showLoadingState(s=true) { document.getElementById('loading-overlay').style.display=s?'flex':'none'; }
+        function hideLoadingState() { showLoadingState(false); }
+        function showAlertModal(t,m) { document.getElementById('alert-modal-title').textContent=t; document.getElementById('alert-modal-message').textContent=m; document.getElementById('alert-modal').classList.remove('hidden'); }
+        function showPromptModal() { document.getElementById('prompt-modal').classList.remove('hidden'); }
+        function hidePromptModal() { document.getElementById('prompt-modal').classList.add('hidden'); }
+        
         // Mobile Drawer
         const drawer = document.getElementById('roster-drawer');
         const overlay = document.getElementById('roster-drawer-overlay');
@@ -490,208 +732,13 @@
         document.getElementById('close-roster-drawer').addEventListener('click', () => toggleRosterDrawer(false));
         overlay.addEventListener('click', () => toggleRosterDrawer(false));
 
-        // Main App Logic
-        let supabaseClient;
-        try { supabaseClient = getSupabaseClient(); } catch (e) { console.error(e); }
-        const CONSTANTS = { INITIAL_SALARY_CAP: 38500000, MAX_PLAYERS_PER_TEAM: 3, ROSTER_SIZE: 10, MAX_ENTRIES_PER_USER: 4, DEBOUNCE_DELAY: 50 };
-        const appState = { currentUser: null, currentSession: null, currentSalarySpent: 0, draftedPlayers: {}, roster: { QB: null, RB1: null, RB2: null, RB3: null, WR1: null, WR2: null, WR3: null, FLEX: null, DST: null, K: null }, teamCounts: {}, playersById: {}, allPlayersByPosition: {}, editingTeamId: null };
-        const rosterSlotConfig = { QB: { count: 1, display: "QB", slots: ["QB"] }, RB: { count: 3, display: "RB", slots: ["RB1", "RB2", "RB3"] }, WR: { count: 3, display: "WR", slots: ["WR1", "WR2", "WR3"] }, FLEX: { count: 1, display: "FLEX", slots: ["FLEX"] }, DST: { count: 1, display: "D/ST", slots: ["DST"] }, K: { count: 1, display: "K", slots: ["K"]}, TE: { count: 0, display: "TE", slots: [] } };
-        const uiElements = {
-            playerPoolContainer: document.getElementById('player-pool-container'),
-            rosterSlotsContainer: document.getElementById('roster-slots-container'),
-            remainingSalaryEl: document.getElementById('remaining-salary'),
-            salaryProgressBar: document.getElementById('salary-progress-bar'),
-            rosterCountEl: document.getElementById('roster-count'),
-            submitTeamButton: document.getElementById('submit-team-button'),
-            submitTeamMessage: document.getElementById('submit-team-message'),
-            navLinks: document.querySelectorAll('.nav-link'),
-            tabContents: document.querySelectorAll('.tab-content'),
-            alertModal: document.getElementById('alert-modal'),
-            subHeader: document.getElementById('sub-header'),
-            loadingOverlay: document.getElementById('loading-overlay'),
-            playerScoresList: document.getElementById('player-scores-list'),
-            standingsTableBody: document.querySelector('#standings-table tbody'),
-            userAuthSection: document.getElementById('user-auth-section'),
-            loginButton: document.getElementById('login-button'),
-            userProfileSection: document.getElementById('user-profile-section'),
-            userEmailDisplay: document.getElementById('user-email-display'),
-            logoutButton: document.getElementById('logout-button'),
-            promptModal: document.getElementById('prompt-modal'),
-            adminNavButton: document.getElementById('nav-admin')
-        };
-        let updateUITimeout = null;
-
-        document.addEventListener('DOMContentLoaded', () => {
-            showLoadingState();
-            checkUser(); 
-            setupEventListeners();
-        });
-
-        function setupEventListeners() {
-            uiElements.playerPoolContainer?.addEventListener('click', handlePlayerPoolClick);
-            uiElements.navLinks?.forEach(link => link.addEventListener('click', handleNavLinkClick));
-            document.getElementById('alert-modal-close-btn')?.addEventListener('click', () => uiElements.alertModal?.classList.add('hidden'));
-            document.getElementById('prompt-modal-cancel-btn')?.addEventListener('click', hidePromptModal);
-            document.getElementById('prompt-modal-confirm-btn')?.addEventListener('click', handleConfirmSubmission);
-            document.getElementById('mobile-submit-btn')?.addEventListener('click', handleSubmitTeamClick);
-            uiElements.logoutButton?.addEventListener('click', handleLogout);
-            uiElements.submitTeamButton?.addEventListener('click', handleSubmitTeamClick);
-        }
-
-        async function checkUser() {
-            if (!supabaseClient) { hideLoadingState(); return; }
-            const { data, error } = await supabaseClient.auth.getSession();
-            if (error || !data.session) {
-                window.location.href = "login.html"; 
-            } else {
-                appState.currentUser = data.session.user;
-                appState.currentSession = data.session;
-                updateAuthUI(true, data.session.user.email);
-                checkAdminStatus();
-                const urlParams = new URLSearchParams(window.location.search);
-                const teamIdToEdit = urlParams.get('edit_team_id');
-                await fetchPlayersAndScores(); 
-                if (teamIdToEdit) await loadTeamForEditing(teamIdToEdit);
-                else hideLoadingState();
-                renderPlayerScoresTab(); 
-                fetchAndRenderStandings(); 
-            }
-        }
-        
-        async function checkAdminStatus() { const isAdmin = await checkIsAdmin(); if (isAdmin) uiElements.adminNavButton?.classList.remove('hidden'); }
-        function updateAuthUI(loggedIn, email) { if(loggedIn) { uiElements.loginButton.classList.add('hidden'); uiElements.userProfileSection.classList.remove('hidden'); uiElements.userProfileSection.style.display='flex'; uiElements.userEmailDisplay.textContent=email; } }
-        async function handleLogout() { showLoadingState(); clearAdminCache(); await supabaseClient.auth.signOut(); window.location.href="login.html"; }
-        
-        async function fetchPlayersAndScores() {
-            try {
-                // 1. Fetch Standard Data
-                const [pRes, sRes] = await Promise.all([
-                    supabaseClient.from('players').select('*'), 
-                    supabaseClient.from('player_scores').select('*')
-                ]);
-                
-                // 2. Fetch Ownership Data (New RPC)
-                const ownRes = await supabaseClient.rpc('get_player_ownership');
-                const ownershipMap = {};
-                if(ownRes.data) {
-                    ownRes.data.forEach(o => ownershipMap[o.player_id] = o.percent);
-                }
-
-                const scoresMap = {};
-                (sRes.data||[]).forEach(s => {
-                    if(!scoresMap[s.player_id]) scoresMap[s.player_id] = { WC:0, DIV:0, CONF:0, SB:0, Total:0 };
-                    scoresMap[s.player_id][s.playoff_round] = s.points;
-                    scoresMap[s.player_id].Total += s.points;
-                });
-
-                appState.allPlayersByPosition = { QB: [], RB: [], WR: [], TE: [], DST: [], K: [] };
-                
-                pRes.data.forEach(p => {
-                    const s = scoresMap[p.id] || { WC:0, DIV:0, CONF:0, SB:0, Total:0 };
-                    const ownPct = ownershipMap[p.id] || 0;
-                    
-                    const player = { 
-                        ...p, 
-                        imageUrl: p.image_url, 
-                        stats: s, // Store full stat object
-                        ownership: ownPct,
-                        totalPoints: s.Total
-                    };
-                    if (appState.allPlayersByPosition[player.position]) { 
-                        appState.allPlayersByPosition[player.position].push(player); 
-                        appState.playersById[player.id] = player; 
-                    }
-                });
-                initializeUI();
-            } catch(e) { console.error(e); }
-        }
-
-        // ... loadTeamForEditing, initializeUI, triggerUpdateAllUI, updateSalaryUI, updateRosterCount, checkRosterFull, handlePlayerPoolClick, draftPlayer, findAvailableSlot, removePlayer, renderPlayerPool, updatePlayerAvailabilityInPool, renderSubHeader, formatToMillions, showLoadingState, hideLoadingState, showAlertModal ...
-        // (These functions remain exactly as they were in previous steps to save space - assume they are here)
-        
-        async function loadTeamForEditing(teamId) {
-            showLoadingState();
-            try {
-                const { data } = await supabaseClient.from('user_teams').select(`id, team_name, user_id, team_players(roster_slot, players(id))`).eq('id', teamId).single();
-                resetDraftState(); appState.editingTeamId = data.id;
-                data.team_players.forEach(tp => { const p = appState.playersById[tp.players.id]; if(p) { appState.roster[tp.roster_slot]=p; appState.draftedPlayers[p.id]=p; appState.currentSalarySpent+=p.salary; appState.teamCounts[p.team]=(appState.teamCounts[p.team]||0)+1; } });
-                uiElements.submitTeamButton.textContent="Update Team"; document.getElementById('mobile-submit-btn').textContent="Update"; triggerUpdateAllUI();
-            } catch(e) { window.location.href="index.html"; } finally { hideLoadingState(); }
-        }
-        function initializeUI() { renderPlayerPool(); renderRosterSlots(); renderSubHeader(); triggerUpdateAllUI(); updateSubHeaderVisibility('nav-draft-team'); }
-        function triggerUpdateAllUI() { if (updateUITimeout) clearTimeout(updateUITimeout); updateUITimeout = setTimeout(() => { updateSalaryUI(); updateRosterCount(); renderRosterSlots(); updatePlayerAvailabilityInPool(); checkRosterFull(); }, 50); }
-        function updateSalaryUI() { 
-            const rem=CONSTANTS.INITIAL_SALARY_CAP-appState.currentSalarySpent; const spent=appState.currentSalarySpent; const fmt=formatToMillions(rem);
-            if(uiElements.remainingSalaryEl) uiElements.remainingSalaryEl.textContent=fmt; document.getElementById('spent-amount').textContent=formatToMillions(spent); document.getElementById('mobile-remaining-salary').textContent=fmt; document.getElementById('mobile-drawer-spent').textContent=`${formatToMillions(spent)} / $38.5M`;
-            const pct=(spent/CONSTANTS.INITIAL_SALARY_CAP)*100; if(uiElements.salaryProgressBar) uiElements.salaryProgressBar.style.width=`${Math.min(pct,100)}%`; document.getElementById('mobile-drawer-progress').style.width=`${Math.min(pct,100)}%`;
-        }
-        function updateRosterCount() { const c=Object.keys(appState.draftedPlayers).length; uiElements.rosterCountEl.textContent=c; document.getElementById('mobile-roster-count').textContent=c; }
-        function checkRosterFull() { const f=Object.keys(appState.draftedPlayers).length===CONSTANTS.ROSTER_SIZE; uiElements.submitTeamButton.disabled=!f; document.getElementById('mobile-submit-btn').disabled=!f; }
-        function handlePlayerPoolClick(e) { const c=e.target.closest('.player-card'); const h=e.target.closest('.position-group h2'); if(h){h.parentElement.classList.toggle('hidden-section');return;} if(c&&!c.classList.contains('player-unavailable')&&!c.classList.contains('player-drafted')) draftPlayer(appState.playersById[c.dataset.playerId],c); }
-        function draftPlayer(p,c) { 
-            if(appState.currentSalarySpent+p.salary>CONSTANTS.INITIAL_SALARY_CAP){showAlertModal('Cap Exceeded','Not enough salary.');return;}
-            if((appState.teamCounts[p.team]||0)>=CONSTANTS.MAX_PLAYERS_PER_TEAM){showAlertModal('Limit Reached','Too many from this team.');return;}
-            const s=findAvailableSlot(p.position); if(!s){showAlertModal('Position Full','No slot.');return;}
-            appState.roster[s]=p; appState.draftedPlayers[p.id]=p; appState.currentSalarySpent+=p.salary; appState.teamCounts[p.team]=(appState.teamCounts[p.team]||0)+1;
-            c.classList.add('draft-flash'); setTimeout(()=>c.classList.remove('draft-flash'),500); triggerUpdateAllUI();
-        }
-        function findAvailableSlot(pos) { const s=rosterSlotConfig[pos]?.slots||[]; for(const k of s) if(!appState.roster[k]) return k; if(['RB','WR','TE'].includes(pos)&&!appState.roster.FLEX) return 'FLEX'; return null; }
-        function removePlayer(id,s) { const p=appState.draftedPlayers[id]; if(!p)return; appState.currentSalarySpent-=p.salary; appState.teamCounts[p.team]--; if(appState.teamCounts[p.team]<=0) delete appState.teamCounts[p.team]; delete appState.draftedPlayers[id]; appState.roster[s]=null; triggerUpdateAllUI(); }
-        function renderPlayerPool() { 
-            const c=uiElements.playerPoolContainer; if(!c)return; c.innerHTML=''; 
-            ["QB","RB","WR","TE","DST","K"].forEach(k=>{ 
-                const ps=appState.allPlayersByPosition[k]; if(ps?.length>0){ 
-                    const s=document.createElement('section'); s.id=`section-${k}`; s.className='position-group mb-6'; 
-                    s.innerHTML=`<h2 class="text-xl font-black text-white mb-3 flex items-center gap-3 uppercase italic tracking-tight sticky top-28 bg-surface-900/95 p-2 z-20 backdrop-blur"><span>${k}</span><span class="h-px flex-grow bg-white/10"></span></h2><div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 player-grid"></div>`; 
-                    const g=s.querySelector('.player-grid'); ps.sort((a,b)=>b.salary-a.salary).forEach(p=>g.appendChild(createPlayerCard(p))); c.appendChild(s); 
-                } 
-            }); 
-        }
-        function updatePlayerAvailabilityInPool() { const rem=CONSTANTS.INITIAL_SALARY_CAP-appState.currentSalarySpent; document.querySelectorAll('.player-card').forEach(c=>{ const p=appState.playersById[c.dataset.playerId]; if(!p)return; c.classList.remove('player-drafted','player-unavailable'); if(appState.draftedPlayers[p.id])c.classList.add('player-drafted'); else if((appState.teamCounts[p.team]||0)>=CONSTANTS.MAX_PLAYERS_PER_TEAM)c.classList.add('player-unavailable'); else if(!findAvailableSlot(p.position))c.classList.add('player-unavailable'); else if(p.salary>rem)c.classList.add('player-unavailable'); }); }
-        function renderSubHeader() { if(!uiElements.subHeader)return; const ks=Object.keys(appState.allPlayersByPosition); uiElements.subHeader.innerHTML=`<div class="container mx-auto px-4 sm:px-6 lg:px-8"><div class="flex items-center gap-2 overflow-x-auto py-3 no-scrollbar">${ks.map(k=>`<a href="#section-${k}" class="flex-shrink-0 px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wide border border-white/10 bg-surface-800 text-gray-400 hover:text-white hover:border-brand hover:bg-surface-700 transition-all">${k}</a>`).join('')}</div></div>`; }
-        function formatToMillions(v) { if(typeof v!=='number'||isNaN(v))return'$0.0M'; return`$${(v/1000000).toFixed(1)}M`; }
-        function showLoadingState(s=true) { document.getElementById('loading-overlay').style.display=s?'flex':'none'; }
-        function hideLoadingState() { showLoadingState(false); }
-        function showAlertModal(t,m) { document.getElementById('alert-modal-title').textContent=t; document.getElementById('alert-modal-message').textContent=m; document.getElementById('alert-modal').classList.remove('hidden'); }
-        function showPromptModal() { document.getElementById('prompt-modal').classList.remove('hidden'); }
-        function hidePromptModal() { document.getElementById('prompt-modal').classList.add('hidden'); }
-        async function handleConfirmSubmission() { const n=document.getElementById('prompt-modal-input').value.trim(); if(!appState.editingTeamId&&!n){document.getElementById('prompt-modal-error').textContent='Name required';document.getElementById('prompt-modal-error').classList.remove('hidden');return;} showLoadingState(); hidePromptModal(); try{ if(!appState.editingTeamId){ const{count}=await supabaseClient.from('user_teams').select('*',{count:'exact',head:true}).eq('user_id',appState.currentUser.id); if(count>=CONSTANTS.MAX_ENTRIES_PER_USER)throw new Error('Limit reached'); const res=await supabaseClient.from('user_teams').insert({user_id:appState.currentUser.id,team_name:n}).select('id').single(); if(res.error)throw res.error; appState.editingTeamId=res.data.id; } const ps=Object.keys(appState.roster).filter(k=>appState.roster[k]).map(k=>({team_id:appState.editingTeamId,player_id:appState.roster[k].id,roster_slot:k})); await supabaseClient.from('team_players').delete().eq('team_id',appState.editingTeamId); await supabaseClient.from('team_players').insert(ps); showAlertModal("Success","Team Saved"); if(!window.location.search.includes('edit'))resetDraftState(); else window.location.href="my-teams.html"; }catch(e){showAlertModal("Error",e.message);}finally{hideLoadingState();} }
-        function resetDraftState() { appState.currentSalarySpent=0; appState.draftedPlayers={}; appState.roster={QB:null,RB1:null,RB2:null,RB3:null,WR1:null,WR2:null,WR3:null,FLEX:null,DST:null,K:null}; appState.teamCounts={}; appState.editingTeamId=null; triggerUpdateAllUI(); }
-
-        // *** UPDATED: Nav Link Logic ***
-        function handleNavLinkClick(event) {
-            event.preventDefault();
-            const href = event.currentTarget.getAttribute('href');
-            if (href.includes('.html')) { window.location.href = href; return; }
-            
-            const targetId = href.startsWith('#') ? href.substring(1) : '';
-            if (targetId) {
-                uiElements.navLinks.forEach(nav => {
-                    nav.classList.remove('active', 'text-brand');
-                    nav.classList.add('text-gray-400');
-                });
-                event.currentTarget.classList.add('active', 'text-brand');
-                event.currentTarget.classList.remove('text-gray-400');
-                
-                uiElements.tabContents.forEach(c => c.classList.toggle('active', c.id === targetId));
-                updateSubHeaderVisibility(event.currentTarget.id);
-            }
-        }
-
-        function updateSubHeaderVisibility(activeLinkId) {
-            if (activeLinkId === 'nav-draft-team') uiElements.subHeader.classList.remove('sub-header-hidden');
-            else uiElements.subHeader.classList.add('sub-header-hidden');
-        }
-
-        // *** UPDATED: Render Player Scores with Columns ***
+        // Scores Tab
         function renderPlayerScoresTab() {
             const container = uiElements.playerScoresList; if(!container) return; container.innerHTML = '';
-            
             ["QB", "RB", "WR", "TE", "DST", "K"].forEach(pos => {
                 const players = appState.allPlayersByPosition[pos]; if(!players?.length) return;
                 const wrapper = document.createElement('div'); wrapper.className = 'glass-panel p-4 md:p-6 rounded-xl mb-8';
                 wrapper.innerHTML = `<h3 class="text-lg font-black text-brand mb-4 border-b border-white/5 pb-2">${pos}</h3>`;
-                
                 const table = document.createElement('table'); 
                 table.className = 'w-full text-sm text-left text-gray-400';
                 table.innerHTML = `

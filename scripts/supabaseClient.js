@@ -1,123 +1,50 @@
-const PLACEHOLDER_PATTERN = /^YOUR_/i;
+// =================================================================================
+// --- CONFIGURATION ---
+// =================================================================================
+
+// REPLACE THIS WITH YOUR ACTUAL SUPABASE ANON KEY
+const SUPABASE_URL = "https://jlsudfmhsmxmxpdtkrzr.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impsc3VkZm1oc214bXhwZHRrcnpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExNDQxNjEsImV4cCI6MjA3NjcyMDE2MX0.zJrz82WArsyFLybmGsxkOAr9HBoHrFhfa2pHwqvojxk"; 
+
+// =================================================================================
+// --- CLIENT INITIALIZATION ---
+// =================================================================================
+
 let supabaseClientInstance = null;
-let cachedConfig = null;
-let cachedConfigError = null;
-
-function parseConfigFromScript() {
-  if (typeof document === 'undefined') {
-    return {};
-  }
-
-  const scriptEl = document.getElementById('supabase-config');
-  if (!scriptEl) {
-    return {};
-  }
-
-  try {
-    const parsed = JSON.parse(scriptEl.textContent || '{}');
-    if (parsed && typeof parsed === 'object') {
-      return parsed;
-    }
-  } catch (error) {
-    console.error('Failed to parse Supabase configuration JSON.', error);
-    throw new Error('Invalid Supabase configuration JSON.');
-  }
-
-  return {};
-}
-
-function parseConfigFromMetaTags() {
-  if (typeof document === 'undefined') {
-    return {};
-  }
-
-  const config = {};
-  const urlMeta = document.querySelector('meta[name="supabase-url"]');
-  const keyMeta = document.querySelector('meta[name="supabase-anon-key"]');
-
-  if (urlMeta?.content) {
-    config.url = urlMeta.content;
-  }
-  if (keyMeta?.content) {
-    config.anonKey = keyMeta.content;
-  }
-  
-  return config;
-}
-
-function resolveSupabaseConfig() {
-  if (cachedConfig) {
-    return cachedConfig;
-  }
-  if (cachedConfigError) {
-    throw cachedConfigError;
-  }
-
-  const sources = [];
-
-  if (typeof window !== 'undefined' && window.__SUPABASE_CONFIG__) {
-    sources.push(window.__SUPABASE_CONFIG__);
-  }
-
-  try {
-    sources.push(parseConfigFromScript());
-  } catch (error) {
-    cachedConfigError = error;
-    throw error;
-  }
-
-  sources.push(parseConfigFromMetaTags());
-
-  const merged = sources.reduce((acc, source) => {
-    if (!source || typeof source !== 'object') {
-      return acc;
-    }
-
-    if (typeof source.url === 'string') {
-      acc.url = source.url;
-    }
-    if (typeof source.anonKey === 'string') {
-      acc.anonKey = source.anonKey;
-    }
-    return acc;
-  }, { url: '', anonKey: '' });
-
-  merged.url = (merged.url || '').trim();
-  merged.anonKey = (merged.anonKey || '').trim();
-
-  if (PLACEHOLDER_PATTERN.test(merged.url)) {
-    merged.url = '';
-  }
-  if (PLACEHOLDER_PATTERN.test(merged.anonKey)) {
-    merged.anonKey = '';
-  }
-
-  if (!merged.url || !merged.anonKey) {
-    const error = new Error('Supabase configuration is missing the project URL or anon key.');
-    cachedConfigError = error;
-    throw error;
-  }
-
-  cachedConfig = Object.freeze({
-    url: merged.url,
-    anonKey: merged.anonKey
-  });
-
-  return cachedConfig;
-}
+let isAdminCache = null;
 
 function ensureSupabaseIsAvailable() {
   if (typeof supabase === 'undefined' || !supabase?.createClient) {
-    throw new Error('Supabase library has not been loaded.');
+    throw new Error('Supabase library has not been loaded. Make sure the CDN script tag is in your HTML.');
   }
 }
 
-export function getSupabaseConfig() {
-  return resolveSupabaseConfig();
+export function getSupabaseClient() {
+  if (supabaseClientInstance) {
+    return supabaseClientInstance;
+  }
+
+  ensureSupabaseIsAvailable();
+
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY || SUPABASE_ANON_KEY.includes("YOUR_ANON_KEY")) {
+    console.error("Supabase configuration is missing or invalid in scripts/supabaseClient.js");
+    return null;
+  }
+
+  supabaseClientInstance = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true
+    }
+  });
+
+  return supabaseClientInstance;
 }
 
-// --- NEW SECURE ADMIN CHECK ---
-let isAdminCache = null;
+// =================================================================================
+// --- ADMIN UTILITIES ---
+// =================================================================================
 
 /**
  * Checks if the current authenticated user is an admin by calling a secure database function.
@@ -129,8 +56,10 @@ export async function checkIsAdmin() {
     return isAdminCache;
   }
 
-  const supabase = getSupabaseClient();
-  const { data, error } = await supabase.rpc('is_admin_user');
+  const client = getSupabaseClient();
+  if (!client) return false;
+
+  const { data, error } = await client.rpc('is_admin_user');
 
   if (error) {
     console.error("Error checking admin status:", error.message);
@@ -148,37 +77,3 @@ export async function checkIsAdmin() {
 export function clearAdminCache() {
   isAdminCache = null;
 }
-// --- END NEW SECURE ADMIN CHECK ---
-
-
-export function getSupabaseClient() {
-  if (supabaseClientInstance) {
-    return supabaseClientInstance;
-  }
-
-  const config = resolveSupabaseConfig();
-  ensureSupabaseIsAvailable();
-
-  supabaseClientInstance = supabase.createClient(config.url, config.anonKey, {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true
-    }
-  });
-
-  return supabaseClientInstance;
-}
-
-export const SUPABASE_CONFIG = new Proxy(
-  {},
-  {
-    get: (_, property) => {
-      const config = resolveSupabaseConfig();
-      return config[property];
-    },
-    ownKeys: () => Reflect.ownKeys(resolveSupabaseConfig()),
-    getOwnPropertyDescriptor: (_, property) =>
-      Object.getOwnPropertyDescriptor(resolveSupabaseConfig(), property)
-  }
-);

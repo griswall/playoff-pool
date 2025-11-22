@@ -6,13 +6,8 @@
     <title>Admin - Hurd NFL Playoff Pool</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <!-- 1. Import Supabase Library -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- Runtime Supabase configuration (replace values or set window.__SUPABASE_CONFIG__) -->
-    <script id="supabase-config" type="application/json">
-        <!-- **** NOTE: adminEmails array is no longer needed here **** -->
-        {"url":"https://jlsudfmhsmxmxpdtkrzr.supabase.co","anonKey":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impsc3VkZm1oc214bXhwZHRrcnpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExNDQxNjEsImV4cCI6MjA3NjcyMDE2MX0.zJrz82WArsyFLybmGsxkOAr9HBoHrFhfa2pHwqvojxk"}
-    </script>
+    
     <style>
         :root {
             --accent: #00d084;
@@ -152,8 +147,7 @@
                         </tr>
                     </thead>
                     <tbody id="scores-table-body">
-                        <!-- Player rows will be rendered here by JavaScript -->
-                    </tbody>
+                        </tbody>
                 </table>
             </div>
             <div class="mt-6 text-right">
@@ -167,39 +161,25 @@
     </div>
 
     <script type="module">
-        // =================================================================================
-        // --- SUPABASE & APP INITIALIZATION ---
-        // =================================================================================
-        
-        // **This imports your new supabaseClient.js file**
-        // **** UPDATED: Added checkIsAdmin, removed getSupabaseConfig and isAdminEmail ****
         import { getSupabaseClient, checkIsAdmin } from './scripts/supabaseClient.js';
 
         let supabaseClient;
-        let allPlayers = []; // To store fetched players
-        let playerScores = {}; // To store fetched scores { "player_id-round": points }
-        // **** REMOVED: adminEmails array is no longer needed ****
-        // let adminEmails = [];
+        let allPlayers = []; 
+        let playerScores = {}; 
 
         try {
-            // **** REMOVED: config and adminEmails loading ****
             supabaseClient = getSupabaseClient();
         } catch (e) {
             console.error("Error initializing Supabase.", e.message);
             alert("CRITICAL ERROR: Could not connect to Supabase. Check console.");
         }
 
-        // --- DOM REFERENCES ---
         const uiElements = {
             tableBody: document.getElementById('scores-table-body'),
             saveButton: document.getElementById('save-scores-btn'),
             loadingOverlay: document.getElementById('loading-overlay')
         };
 
-        // =================================================================================
-        // --- APP INITIALIZATION ---
-        // =================================================================================
-        
         document.addEventListener('DOMContentLoaded', () => {
             if (!supabaseClient) {
                 alert("Supabase client not initialized. Page will not work.");
@@ -214,41 +194,25 @@
             uiElements.saveButton?.addEventListener('click', handleSaveScores);
         }
 
-        // =================================================================================
-        // --- AUTH & DATA FETCHING ---
-        // =================================================================================
-
-        /**
-         * Checks for an active Supabase session. Redirects to login if not found.
-         * Then, loads all data.
-         */
         async function checkUserAndLoadData() {
             const { data, error } = await supabaseClient.auth.getSession();
             if (error || !data.session) {
-                window.location.href = "login.html"; // Redirect if no session
+                window.location.href = "login.html"; 
                 return;
             }
 
-            // **** REMOVED: Old client-side admin check ****
-
-            // **** NEW: Secure server-side admin check ****
             const isAdmin = await checkIsAdmin();
             if (!isAdmin) {
                 alert("Access Denied: This page is for administrators only.");
                 window.location.href = "index.html";
                 return;
             }
-            // **** END NEW CHECK ****
 
             await fetchAllData();
         }
 
-        /**
-         * Fetches all players and all existing scores from the database.
-         */
         async function fetchAllData() {
             try {
-                // Fetch players
                 let { data: playersData, error: playersError } = await supabaseClient
                     .from('players')
                     .select('*')
@@ -257,21 +221,18 @@
                 if (playersError) throw playersError;
                 allPlayers = playersData;
 
-                // Fetch scores
                 let { data: scoresData, error: scoresError } = await supabaseClient
                     .from('player_scores')
                     .select('*');
 
                 if (scoresError) throw scoresError;
 
-                // Map scores for easy lookup
                 playerScores = scoresData.reduce((acc, score) => {
                     const key = `${score.player_id}-${score.playoff_round}`;
                     acc[key] = score.points;
                     return acc;
                 }, {});
 
-                // Now that data is ready, render the table
                 renderScoresTable();
 
             } catch (error) {
@@ -282,36 +243,23 @@
             }
         }
 
-        // =================================================================================
-        // --- CORE ADMIN LOGIC ---
-        // =================================================================================
-        
-        /**
-         * Gathers all score data from the table and sends it to the Supabase function.
-         */
         async function handleSaveScores() {
             showLoading(true);
             const scoreUpdates = [];
             
-            // Find all input fields in the table
             const allInputs = uiElements.tableBody.querySelectorAll('input[data-player-id]');
 
             allInputs.forEach(input => {
                 const playerId = input.dataset.playerId;
                 const round = input.dataset.round;
-                // Parse the value as a float, or null if empty
                 const points = input.value.trim() === '' ? null : parseFloat(input.value);
 
-                // Only add to the update array if the value is a valid number or null
                 if (points === null || !isNaN(points)) {
                     scoreUpdates.push({
                         player_id_to_update: parseInt(playerId, 10),
                         round_to_update: round,
                         points_to_update: points
                     });
-                } else {
-                    // If input is invalid (e.g., "abc"), skip it but warn user
-                    console.warn(`Invalid input skipped for ${playerId} [${round}]: ${input.value}`);
                 }
             });
 
@@ -322,7 +270,6 @@
             }
 
             try {
-                // Call the database function we created
                 const { error } = await supabaseClient.rpc('bulk_upsert_player_scores', {
                     scores_to_update: scoreUpdates
                 });
@@ -330,7 +277,6 @@
                 if (error) throw error;
 
                 alert("Scores saved successfully!");
-                // Re-fetch scores to show the saved data
                 await fetchAllData();
 
             } catch (error) {
@@ -341,16 +287,9 @@
             }
         }
 
-        // =================================================================================
-        // --- UI RENDERING ---
-        // =================================================================================
-        
-        /**
-         * Renders the main scores table.
-         */
         function renderScoresTable() {
             if (!uiElements.tableBody) return;
-            uiElements.tableBody.innerHTML = ''; // Clear old data
+            uiElements.tableBody.innerHTML = ''; 
             const fragment = document.createDocumentFragment();
             const rounds = ['WC', 'DIV', 'CONF', 'SB'];
 
@@ -384,7 +323,6 @@
         function showLoading(isLoading) {
             uiElements.loadingOverlay?.classList.toggle('active', isLoading);
         }
-
     </script>
 </body>
 </html>

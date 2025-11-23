@@ -51,8 +51,10 @@
             background-image: radial-gradient(circle at 50% -20%, #1e293b 0%, #020617 60%);
             background-attachment: fixed;
             color: #f8fafc;
+            /* Dynamic Viewport Height for mobile stability */
             min-height: 100vh;
-            padding-bottom: 80px; 
+            min-height: 100dvh; 
+            padding-bottom: 100px; /* Extra space for footer */
         }
 
         .glass-panel {
@@ -68,22 +70,38 @@
             border-bottom: 1px solid rgba(255, 255, 255, 0.05);
         }
 
+        /* Nav Active State Indicator */
         .nav-link { position: relative; transition: color 0.2s; cursor: pointer; }
         .nav-link.active::after {
             content: ''; position: absolute; bottom: -21px; left: 0; width: 100%; height: 3px;
             background: var(--accent); box-shadow: 0 -2px 10px var(--accent-glow); border-radius: 2px 2px 0 0;
         }
 
+        /* COMPACT PLAYER CARD DESIGN */
         .player-card {
             display: flex; align-items: center; justify-content: space-between;
             background: var(--card-bg); border: 1px solid var(--card-border);
-            padding: 0.75rem; border-radius: 0.75rem; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            padding: 0.75rem; border-radius: 0.75rem; 
+            transition: border-color 0.2s, background-color 0.2s; /* Removed transform transition to stop flicker */
             cursor: pointer; position: relative; overflow: hidden;
+            /* GPU Acceleration to prevent glitching */
+            transform: translateZ(0);
         }
         
-        .player-card:not(.player-drafted):not(.player-unavailable):hover {
-            transform: translateX(4px); border-color: var(--accent);
-            background: rgba(30, 41, 59, 0.95); box-shadow: -4px 4px 15px rgba(0, 0, 0, 0.3);
+        /* Hover effect ONLY on devices that support hover (Desktop) to prevent mobile tap flicker */
+        @media (hover: hover) {
+            .player-card:not(.player-drafted):not(.player-unavailable):hover {
+                transform: translateX(4px); 
+                border-color: var(--accent);
+                background: rgba(30, 41, 59, 0.95); 
+                box-shadow: -4px 4px 15px rgba(0, 0, 0, 0.3);
+                transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+        }
+        /* Mobile Active State (Tap feedback without layout shift) */
+        .player-card:active {
+            background: rgba(30, 41, 59, 0.95);
+            border-color: var(--accent);
         }
 
         .player-card.player-drafted { 
@@ -105,14 +123,23 @@
 
         .player-avatar { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,255,255,0.1); background: #1e293b; }
 
+        /* MOBILE STICKY FOOTER */
         .mobile-draft-footer {
             position: fixed; bottom: 0; left: 0; right: 0;
-            background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(16px);
-            border-top: 1px solid var(--accent); padding: 12px 16px; z-index: 100;
+            background: rgba(15, 23, 42, 0.98); 
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border-top: 1px solid var(--accent); 
+            padding: 12px 16px;
+            /* Safe area for iPhone home bar */
+            padding-bottom: env(safe-area-inset-bottom, 12px);
+            z-index: 100;
             display: flex; justify-content: space-between; align-items: center;
             box-shadow: 0 -4px 20px rgba(0,0,0,0.5);
+            /* Performance fix */
+            will-change: transform;
         }
         
+        /* Roster Drawer */
         .roster-drawer-overlay {
             position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(4px);
             z-index: 101; opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
@@ -123,15 +150,28 @@
             position: fixed; bottom: 0; left: 0; right: 0;
             background: #1e293b; border-top-left-radius: 20px; border-top-right-radius: 20px;
             transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            z-index: 102; max-height: 85vh; display: flex; flex-direction: column;
+            z-index: 102; max-height: 80vh; display: flex; flex-direction: column;
             border-top: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: env(safe-area-inset-bottom, 20px);
         }
         .roster-drawer.open { transform: translateY(0); }
+
+        /* Mobile Navigation Menu */
+        #mobile-menu {
+            position: absolute; top: 100%; left: 0; right: 0;
+            background: rgba(2, 6, 23, 0.98);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            overflow: hidden;
+            max-height: 0;
+            transition: max-height 0.3s ease-in-out;
+            z-index: 90;
+        }
+        #mobile-menu.open { max-height: 400px; }
 
         /* Tab Visibility - Forced Styles */
         .tab-content { display: none !important; }
         .tab-content.active { display: block !important; }
-        /* Specific override for Draft View to use Flex */
         #draft-team-view.active { display: flex !important; }
 
         .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -149,7 +189,7 @@
 </head>
 <body class="antialiased selection:bg-brand selection:text-black">
 
-    <header class="glass-header sticky top-0 z-40 transition-all duration-300">
+    <header class="glass-header sticky top-0 z-50 transition-all duration-300">
         <div class="container mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between h-16">
                 <div class="flex items-center gap-3">
@@ -182,10 +222,24 @@
                         </div>
                     </div>
                 </div>
+                
                 <div class="md:hidden flex items-center">
-                    <a href="my-teams.html" class="text-xs font-bold text-brand uppercase border border-brand/30 px-2 py-1 rounded">My Teams</a>
+                    <button id="mobile-menu-btn" class="text-white p-2 hover:text-brand focus:outline-none">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                    </button>
                 </div>
             </div>
+        </div>
+
+        <div id="mobile-menu">
+            <nav class="flex flex-col p-4 space-y-4">
+                <a href="#draft-team-view" class="mobile-nav-link text-sm font-bold uppercase tracking-widest text-brand block py-2 border-b border-white/10">Draft</a>
+                <a href="#player-scores-view" class="mobile-nav-link text-sm font-bold uppercase tracking-widest text-gray-400 hover:text-white block py-2 border-b border-white/10">Scores</a>
+                <a href="#standings-view" class="mobile-nav-link text-sm font-bold uppercase tracking-widest text-gray-400 hover:text-white block py-2 border-b border-white/10">Standings</a>
+                <a href="#rules-view" class="mobile-nav-link text-sm font-bold uppercase tracking-widest text-gray-400 hover:text-white block py-2 border-b border-white/10">Rules</a>
+                <a href="my-teams.html" class="text-sm font-bold uppercase tracking-widest text-gray-400 hover:text-white block py-2 border-b border-white/10">My Teams</a>
+                <a href="admin.html" id="mobile-nav-admin" class="hidden text-yellow-400 text-sm font-bold uppercase block py-2">Admin Panel</a>
+            </nav>
         </div>
     </header>
 
@@ -193,7 +247,7 @@
 
     <main class="container mx-auto px-4 sm:px-6 lg:px-8 py-6">
         
-        <div id="draft-team-view" class="tab-content active flex-col xl:flex-row gap-8">
+        <div id="draft-team-view" class="tab-content active flex flex-col xl:flex-row gap-8">
             <div id="player-pool-container" class="w-full xl:w-3/4 space-y-8" role="region" aria-label="Available players"></div>
             <aside class="hidden xl:block w-1/4 space-y-6 sticky top-32 self-start">
                 <div class="glass-panel rounded-xl p-6 shadow-2xl">
@@ -234,7 +288,9 @@
             <h2 class="text-2xl font-black text-white mb-6 uppercase italic">League <span class="text-brand">Standings</span></h2>
             <div class="overflow-x-auto rounded-lg border border-white/5">
                 <table id="standings-table" class="w-full text-sm text-left">
-                    <thead class="text-xs text-gray-400 uppercase bg-surface-800"><tr><th class="px-6 py-4">Rank</th><th class="px-6 py-4">Team / User</th><th class="px-6 py-4 text-right">Total Points</th></tr></thead>
+                    <thead class="text-xs text-gray-400 uppercase bg-surface-800">
+                        <tr><th class="px-6 py-4">Rank</th><th class="px-6 py-4">Team / User</th><th class="px-6 py-4 text-right">Total Points</th></tr>
+                    </thead>
                     <tbody class="divide-y divide-white/5"></tbody>
                 </table>
             </div>
@@ -331,16 +387,24 @@
         let supabaseClient;
         try { supabaseClient = getSupabaseClient(); } catch (e) { console.error(e); }
 
-        // VARIABLES (Hoisted)
-        let uiElements = {};
         const CONSTANTS = { INITIAL_SALARY_CAP: 38500000, MAX_PLAYERS_PER_TEAM: 3, ROSTER_SIZE: 10, MAX_ENTRIES_PER_USER: 4, DEBOUNCE_DELAY: 50 };
         const appState = { currentUser: null, currentSession: null, currentSalarySpent: 0, draftedPlayers: {}, roster: { QB: null, RB1: null, RB2: null, RB3: null, WR1: null, WR2: null, WR3: null, FLEX: null, DST: null, K: null }, teamCounts: {}, playersById: {}, allPlayersByPosition: {}, editingTeamId: null };
         const rosterSlotConfig = { QB: { count: 1, display: "QB", slots: ["QB"] }, RB: { count: 3, display: "RB", slots: ["RB1", "RB2", "RB3"] }, WR: { count: 3, display: "WR", slots: ["WR1", "WR2", "WR3"] }, FLEX: { count: 1, display: "FLEX", slots: ["FLEX"] }, DST: { count: 1, display: "D/ST", slots: ["DST"] }, K: { count: 1, display: "K", slots: ["K"]}, TE: { count: 0, display: "TE", slots: [] } };
+        
+        let uiElements = {};
         let updateUITimeout = null;
 
-        // CORE INIT
+        // Mobile Menu Toggle
+        const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+        const mobileMenu = document.getElementById('mobile-menu');
+        
+        function toggleMobileMenu() {
+            mobileMenu.classList.toggle('open');
+        }
+        if(mobileMenuBtn) mobileMenuBtn.addEventListener('click', toggleMobileMenu);
+
+        // Initialize Code
         document.addEventListener('DOMContentLoaded', () => {
-            // Select DOM elements HERE, when we know they exist
             uiElements = {
                 playerPoolContainer: document.getElementById('player-pool-container'),
                 rosterSlotsContainer: document.getElementById('roster-slots-container'),
@@ -372,9 +436,17 @@
 
         function setupEventListeners() {
             uiElements.playerPoolContainer?.addEventListener('click', handlePlayerPoolClick);
-            // Attach listeners to the newly found navLinks
+            // Desktop Links
             uiElements.navLinks.forEach(link => link.addEventListener('click', handleNavLinkClick));
             
+            // Mobile Links
+            document.querySelectorAll('.mobile-nav-link').forEach(link => {
+                link.addEventListener('click', (e) => {
+                    handleNavLinkClick(e);
+                    toggleMobileMenu(); // Close menu after click
+                });
+            });
+
             document.getElementById('alert-modal-close-btn')?.addEventListener('click', () => uiElements.alertModal?.classList.add('hidden'));
             document.getElementById('prompt-modal-cancel-btn')?.addEventListener('click', hidePromptModal);
             document.getElementById('prompt-modal-confirm-btn')?.addEventListener('click', handleConfirmSubmission);
@@ -387,29 +459,35 @@
             event.preventDefault();
             const href = event.currentTarget.getAttribute('href');
             if (href.includes('.html')) { window.location.href = href; return; }
-            
             const targetId = href.startsWith('#') ? href.substring(1) : '';
+            
             if (targetId) {
-                // Reset all tabs
+                // Reset desktop styling
                 uiElements.navLinks.forEach(nav => { 
                     nav.classList.remove('active', 'text-brand'); 
                     nav.classList.add('text-gray-400'); 
                 });
-                // Activate clicked
-                event.currentTarget.classList.add('active', 'text-brand'); 
-                event.currentTarget.classList.remove('text-gray-400');
                 
-                // Toggle Views
+                // Match desktop link if triggered from mobile
+                const matchingDesktopLink = document.querySelector(`#desktop-nav a[href="#${targetId}"]`);
+                if (matchingDesktopLink) {
+                    matchingDesktopLink.classList.add('active', 'text-brand'); 
+                    matchingDesktopLink.classList.remove('text-gray-400');
+                }
+                
                 uiElements.tabContents.forEach(c => c.classList.toggle('active', c.id === targetId));
-                
-                updateSubHeaderVisibility(event.currentTarget.id);
-                
-                // Force Render on click to prevent blank screens
+                updateSubHeaderVisibility(targetId);
                 if(targetId === 'player-scores-view') renderPlayerScoresTab();
                 if(targetId === 'standings-view') fetchAndRenderStandings();
             }
         }
 
+        function updateSubHeaderVisibility(targetId) {
+            if (targetId === 'draft-team-view') uiElements.subHeader.classList.remove('sub-header-hidden');
+            else uiElements.subHeader.classList.add('sub-header-hidden');
+        }
+
+        // --- Hoisted Core Logic ---
         function handleSubmitTeamClick() {
             if (Object.keys(appState.draftedPlayers).length !== CONSTANTS.ROSTER_SIZE) { 
                 showAlertModal("Roster Incomplete", "You must draft 10 players to submit your team."); 
@@ -454,7 +532,13 @@
             }
         }
         
-        async function checkAdminStatus() { const isAdmin = await checkIsAdmin(); if (isAdmin) uiElements.adminNavButton?.classList.remove('hidden'); }
+        async function checkAdminStatus() { 
+            const isAdmin = await checkIsAdmin(); 
+            if (isAdmin) {
+                uiElements.adminNavButton?.classList.remove('hidden');
+                document.getElementById('mobile-nav-admin')?.classList.remove('hidden');
+            }
+        }
         function updateAuthUI(loggedIn, email) { if(loggedIn) { uiElements.loginButton.classList.add('hidden'); uiElements.userProfileSection.classList.remove('hidden'); uiElements.userProfileSection.style.display='flex'; uiElements.userEmailDisplay.textContent=email; } }
         async function handleLogout() { showLoadingState(); clearAdminCache(); await supabaseClient.auth.signOut(); window.location.href="login.html"; }
         
@@ -488,6 +572,7 @@
 
         function initializeUI() { renderPlayerPool(); renderRosterSlots(); renderSubHeader(); triggerUpdateAllUI(); updateSubHeaderVisibility('nav-draft-team'); }
         function triggerUpdateAllUI() { if (updateUITimeout) clearTimeout(updateUITimeout); updateUITimeout = setTimeout(() => { updateSalaryUI(); updateRosterCount(); renderRosterSlots(); updatePlayerAvailabilityInPool(); checkRosterFull(); }, 50); }
+        
         function updateSalaryUI() { 
             const rem=CONSTANTS.INITIAL_SALARY_CAP-appState.currentSalarySpent; const spent=appState.currentSalarySpent; const fmt=formatToMillions(rem);
             if(uiElements.remainingSalaryEl) uiElements.remainingSalaryEl.textContent=fmt; document.getElementById('spent-amount').textContent=formatToMillions(spent); document.getElementById('mobile-remaining-salary').textContent=fmt; document.getElementById('mobile-drawer-spent').textContent=`${formatToMillions(spent)} / $38.5M`;
@@ -495,7 +580,9 @@
         }
         function updateRosterCount() { const c=Object.keys(appState.draftedPlayers).length; uiElements.rosterCountEl.textContent=c; document.getElementById('mobile-roster-count').textContent=c; }
         function checkRosterFull() { const f=Object.keys(appState.draftedPlayers).length===CONSTANTS.ROSTER_SIZE; uiElements.submitTeamButton.disabled=!f; document.getElementById('mobile-submit-btn').disabled=!f; }
+        
         function handlePlayerPoolClick(e) { const c=e.target.closest('.player-card'); const h=e.target.closest('.position-group h2'); if(h){h.parentElement.classList.toggle('hidden-section');return;} if(c&&!c.classList.contains('player-unavailable')&&!c.classList.contains('player-drafted')) draftPlayer(appState.playersById[c.dataset.playerId],c); }
+        
         function draftPlayer(p,c) { 
             if(appState.currentSalarySpent+p.salary>CONSTANTS.INITIAL_SALARY_CAP){showAlertModal('Cap Exceeded','Not enough salary.');return;}
             if((appState.teamCounts[p.team]||0)>=CONSTANTS.MAX_PLAYERS_PER_TEAM){showAlertModal('Limit Reached','Too many from this team.');return;}
@@ -506,11 +593,6 @@
         function findAvailableSlot(pos) { const s=rosterSlotConfig[pos]?.slots||[]; for(const k of s) if(!appState.roster[k]) return k; if(['RB','WR','TE'].includes(pos)&&!appState.roster.FLEX) return 'FLEX'; return null; }
         function removePlayer(id,s) { const p=appState.draftedPlayers[id]; if(!p)return; appState.currentSalarySpent-=p.salary; appState.teamCounts[p.team]--; if(appState.teamCounts[p.team]<=0) delete appState.teamCounts[p.team]; delete appState.draftedPlayers[id]; appState.roster[s]=null; triggerUpdateAllUI(); }
         function resetDraftState() { appState.currentSalarySpent=0; appState.draftedPlayers={}; appState.roster={QB:null,RB1:null,RB2:null,RB3:null,WR1:null,WR2:null,WR3:null,FLEX:null,DST:null,K:null}; appState.teamCounts={}; appState.editingTeamId=null; triggerUpdateAllUI(); }
-
-        function updateSubHeaderVisibility(activeLinkId) {
-            if (activeLinkId === 'nav-draft-team') uiElements.subHeader.classList.remove('sub-header-hidden');
-            else uiElements.subHeader.classList.add('sub-header-hidden');
-        }
 
         function renderPlayerPool() { 
             const c=uiElements.playerPoolContainer; if(!c)return; c.innerHTML=''; 
@@ -549,6 +631,7 @@
             const salaryEl = document.createElement('div'); salaryEl.className = 'text-sm font-mono font-bold text-brand'; salaryEl.textContent = formatToMillions(player.salary);
             const addIcon = document.createElement('div'); addIcon.className = 'text-[10px] text-gray-500 hidden group-hover:block mt-1'; addIcon.textContent = 'ADD +';
             rightDiv.appendChild(salaryEl); rightDiv.appendChild(addIcon);
+            
             card.appendChild(leftDiv); card.appendChild(rightDiv);
             return card;
         }
@@ -587,31 +670,6 @@
                 if (mobileContainer) mobileContainer.appendChild(createSlotEl(slotKey, true));
             });
         }
-
-        function updatePlayerAvailabilityInPool() { 
-            const rem=CONSTANTS.INITIAL_SALARY_CAP-appState.currentSalarySpent; 
-            document.querySelectorAll('.player-card').forEach(c => { 
-                const p = appState.playersById[c.dataset.playerId]; 
-                if (!p) return; 
-                c.classList.remove('player-drafted', 'player-unavailable'); 
-                
-                if (appState.draftedPlayers[p.id]) {
-                    c.classList.add('player-drafted'); 
-                } else {
-                    if ((appState.teamCounts[p.team]||0) >= CONSTANTS.MAX_PLAYERS_PER_TEAM) c.classList.add('player-unavailable'); 
-                    else if (!findAvailableSlot(p.position)) c.classList.add('player-unavailable'); 
-                    else if (p.salary > rem) c.classList.add('player-unavailable'); 
-                }
-            }); 
-        }
-
-        function renderSubHeader() { if(!uiElements.subHeader)return; const ks=Object.keys(appState.allPlayersByPosition); uiElements.subHeader.innerHTML=`<div class="container mx-auto px-4 sm:px-6 lg:px-8"><div class="flex items-center gap-2 overflow-x-auto py-3 no-scrollbar">${ks.map(k=>`<a href="#section-${k}" class="flex-shrink-0 px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wide border border-white/10 bg-surface-800 text-gray-400 hover:text-white hover:border-brand hover:bg-surface-700 transition-all">${k}</a>`).join('')}</div></div>`; }
-        function formatToMillions(v) { if(typeof v!=='number'||isNaN(v))return'$0.0M'; return`$${(v/1000000).toFixed(1)}M`; }
-        function showLoadingState(s=true) { document.getElementById('loading-overlay').style.display=s?'flex':'none'; }
-        function hideLoadingState() { showLoadingState(false); }
-        function showAlertModal(t,m) { document.getElementById('alert-modal-title').textContent=t; document.getElementById('alert-modal-message').textContent=m; document.getElementById('alert-modal').classList.remove('hidden'); }
-        function showPromptModal() { document.getElementById('prompt-modal').classList.remove('hidden'); }
-        function hidePromptModal() { document.getElementById('prompt-modal').classList.add('hidden'); }
 
         function renderPlayerScoresTab() {
             const container = uiElements.playerScoresList; if(!container) return; container.innerHTML = '';
@@ -652,6 +710,13 @@
                 });
             } catch(e) {}
         }
+        
+        function formatToMillions(v) { if(typeof v!=='number'||isNaN(v))return'$0.0M'; return`$${(v/1000000).toFixed(1)}M`; }
+        function showLoadingState(s=true) { document.getElementById('loading-overlay').style.display=s?'flex':'none'; }
+        function hideLoadingState() { showLoadingState(false); }
+        function showAlertModal(t,m) { document.getElementById('alert-modal-title').textContent=t; document.getElementById('alert-modal-message').textContent=m; document.getElementById('alert-modal').classList.remove('hidden'); }
+        function showPromptModal() { document.getElementById('prompt-modal').classList.remove('hidden'); }
+        function hidePromptModal() { document.getElementById('prompt-modal').classList.add('hidden'); }
     </script>
 </body>
 </html>

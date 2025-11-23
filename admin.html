@@ -92,9 +92,15 @@
         .score-input::placeholder { color: rgba(255,255,255,0.1); }
 
         /* Remove spinner arrows from inputs */
-        input[type="text"]::-webkit-outer-spin-button,
-        input[type="text"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-        input[type="text"] { -moz-appearance: textfield; }
+        input[type="number"]::-webkit-outer-spin-button,
+        input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type="number"] { -moz-appearance: textfield; }
+
+        /* Custom Scrollbar matching the theme */
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(2, 6, 23, 0.5); }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--brand); }
 
         /* Loading */
         .loading-overlay { background: rgba(2, 6, 23, 0.9); z-index: 9999; }
@@ -272,14 +278,14 @@
                     ${rounds.map(round => `
                         <td class="px-2 py-2 text-center">
                             <input 
-                                type="text" 
-                                inputmode="decimal"
-                                pattern="[0-9.-]*"
+                                type="number" 
+                                step="0.1"
                                 class="score-input w-20 p-2 text-sm" 
                                 data-player-id="${player.id}" 
                                 data-round="${round}"
                                 value="${playerScores[`${player.id}-${round}`] ?? ''}"
                                 placeholder="-"
+                                onwheel="this.blur()"
                             >
                         </td>
                     `).join('')}

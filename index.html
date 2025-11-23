@@ -460,7 +460,12 @@
                 userEmailDisplay: document.getElementById('user-email-display'),
                 logoutButton: document.getElementById('logout-button'),
                 promptModal: document.getElementById('prompt-modal'),
-                adminNavButton: document.getElementById('nav-admin')
+                adminNavButton: document.getElementById('nav-admin'),
+                // New elements for drawer
+                openDrawerBtn: document.getElementById('open-roster-drawer'),
+                closeDrawerBtn: document.getElementById('close-roster-drawer'),
+                rosterDrawer: document.getElementById('roster-drawer'),
+                rosterDrawerOverlay: document.getElementById('roster-drawer-overlay')
             };
 
             showLoadingState();
@@ -481,12 +486,27 @@
                 });
             });
 
+            // Roster Drawer
+            uiElements.openDrawerBtn?.addEventListener('click', () => toggleRosterDrawer(true));
+            uiElements.closeDrawerBtn?.addEventListener('click', () => toggleRosterDrawer(false));
+            uiElements.rosterDrawerOverlay?.addEventListener('click', () => toggleRosterDrawer(false));
+
             document.getElementById('alert-modal-close-btn')?.addEventListener('click', () => uiElements.alertModal?.classList.add('hidden'));
             document.getElementById('prompt-modal-cancel-btn')?.addEventListener('click', hidePromptModal);
             document.getElementById('prompt-modal-confirm-btn')?.addEventListener('click', handleConfirmSubmission);
             document.getElementById('mobile-submit-btn')?.addEventListener('click', handleSubmitTeamClick);
             uiElements.logoutButton?.addEventListener('click', handleLogout);
             uiElements.submitTeamButton?.addEventListener('click', handleSubmitTeamClick);
+        }
+
+        function toggleRosterDrawer(open) {
+            if (open) {
+                uiElements.rosterDrawer.classList.add('open');
+                uiElements.rosterDrawerOverlay.classList.add('open');
+            } else {
+                uiElements.rosterDrawer.classList.remove('open');
+                uiElements.rosterDrawerOverlay.classList.remove('open');
+            }
         }
 
         function handleNavLinkClick(event) {
@@ -496,17 +516,26 @@
             const targetId = href.startsWith('#') ? href.substring(1) : '';
             
             if (targetId) {
-                // Reset desktop styling
+                // Desktop Styling
                 uiElements.navLinks.forEach(nav => { 
                     nav.classList.remove('active', 'text-brand'); 
                     nav.classList.add('text-gray-400'); 
                 });
-                
-                // Match desktop link if triggered from mobile
                 const matchingDesktopLink = document.querySelector(`#desktop-nav a[href="#${targetId}"]`);
                 if (matchingDesktopLink) {
                     matchingDesktopLink.classList.add('active', 'text-brand'); 
                     matchingDesktopLink.classList.remove('text-gray-400');
+                }
+
+                // Mobile Styling
+                document.querySelectorAll('.mobile-nav-link').forEach(nav => {
+                    nav.classList.remove('text-brand');
+                    nav.classList.add('text-gray-400');
+                });
+                const matchingMobileLink = document.querySelector(`#mobile-menu a[href="#${targetId}"]`);
+                if (matchingMobileLink) {
+                    matchingMobileLink.classList.add('text-brand');
+                    matchingMobileLink.classList.remove('text-gray-400');
                 }
                 
                 uiElements.tabContents.forEach(c => c.classList.toggle('active', c.id === targetId));

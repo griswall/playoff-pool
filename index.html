@@ -51,11 +51,16 @@
             background-image: radial-gradient(circle at 50% -20%, #1e293b 0%, #020617 60%);
             background-attachment: fixed;
             color: #f8fafc;
-            /* Dynamic Viewport Height for mobile stability */
             min-height: 100vh;
             min-height: 100dvh; 
-            padding-bottom: 100px; /* Extra space for footer */
+            padding-bottom: 100px;
         }
+
+        /* CUSTOM SCROLLBAR */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
 
         .glass-panel {
             background: rgba(15, 23, 42, 0.6);
@@ -70,25 +75,60 @@
             border-bottom: 1px solid rgba(255, 255, 255, 0.05);
         }
 
-        /* Nav Active State Indicator */
+        /* Nav Active State */
         .nav-link { position: relative; transition: color 0.2s; cursor: pointer; }
         .nav-link.active::after {
             content: ''; position: absolute; bottom: -21px; left: 0; width: 100%; height: 3px;
             background: var(--accent); box-shadow: 0 -2px 10px var(--accent-glow); border-radius: 2px 2px 0 0;
         }
 
-        /* COMPACT PLAYER CARD DESIGN */
+        /* POSITION STICKY NAV CHIPS */
+        .position-nav-container {
+            display: flex;
+            gap: 0.5rem;
+            overflow-x: auto;
+            padding: 0.75rem 1rem;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+            mask-image: linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%);
+        }
+        .position-nav-container::-webkit-scrollbar { display: none; }
+
+        .pos-chip {
+            flex: 0 0 auto;
+            padding: 0.35rem 1rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #94a3b8;
+            transition: all 0.2s ease;
+        }
+        .pos-chip:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+        .pos-chip.active {
+            background: var(--accent);
+            color: #020617;
+            border-color: var(--accent);
+            box-shadow: 0 0 15px var(--accent-glow);
+        }
+
+        /* PLAYER CARDS */
         .player-card {
             display: flex; align-items: center; justify-content: space-between;
             background: var(--card-bg); border: 1px solid var(--card-border);
             padding: 0.75rem; border-radius: 0.75rem; 
-            transition: border-color 0.2s, background-color 0.2s; /* Removed transform transition to stop flicker */
+            transition: border-color 0.2s, background-color 0.2s;
             cursor: pointer; position: relative; overflow: hidden;
-            /* GPU Acceleration to prevent glitching */
             transform: translateZ(0);
         }
         
-        /* Hover effect ONLY on devices that support hover (Desktop) to prevent mobile tap flicker */
         @media (hover: hover) {
             .player-card:not(.player-drafted):not(.player-unavailable):hover {
                 transform: translateX(4px); 
@@ -98,7 +138,6 @@
                 transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             }
         }
-        /* Mobile Active State (Tap feedback without layout shift) */
         .player-card:active {
             background: rgba(30, 41, 59, 0.95);
             border-color: var(--accent);
@@ -120,26 +159,22 @@
 
         .card-left { display: flex; align-items: center; gap: 0.75rem; flex: 1; min-width: 0; }
         .card-right { text-align: right; flex-shrink: 0; }
-
         .player-avatar { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,255,255,0.1); background: #1e293b; }
 
-        /* MOBILE STICKY FOOTER */
+        /* FOOTER & DRAWER */
         .mobile-draft-footer {
             position: fixed; bottom: 0; left: 0; right: 0;
             background: rgba(15, 23, 42, 0.98); 
             backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
             border-top: 1px solid var(--accent); 
             padding: 12px 16px;
-            /* Safe area for iPhone home bar */
             padding-bottom: env(safe-area-inset-bottom, 12px);
             z-index: 100;
             display: flex; justify-content: space-between; align-items: center;
             box-shadow: 0 -4px 20px rgba(0,0,0,0.5);
-            /* Performance fix */
             will-change: transform;
         }
         
-        /* Roster Drawer */
         .roster-drawer-overlay {
             position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(4px);
             z-index: 101; opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
@@ -156,7 +191,7 @@
         }
         .roster-drawer.open { transform: translateY(0); }
 
-        /* Mobile Navigation Menu */
+        /* MOBILE MENU */
         #mobile-menu {
             position: absolute; top: 100%; left: 0; right: 0;
             background: rgba(2, 6, 23, 0.98);
@@ -169,11 +204,10 @@
         }
         #mobile-menu.open { max-height: 400px; }
 
-        /* Tab Visibility - Forced Styles */
+        /* UTILS */
         .tab-content { display: none !important; }
         .tab-content.active { display: block !important; }
         #draft-team-view.active { display: flex !important; }
-
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .loading-overlay { background: rgba(2, 6, 23, 0.9); z-index: 9999; }
         .player-fallback-initial {
@@ -570,7 +604,68 @@
             } catch(e) { window.location.href="index.html"; } finally { hideLoadingState(); }
         }
 
-        function initializeUI() { renderPlayerPool(); renderRosterSlots(); renderSubHeader(); triggerUpdateAllUI(); updateSubHeaderVisibility('nav-draft-team'); }
+        function initializeUI() { 
+            renderPlayerPool(); 
+            renderRosterSlots(); 
+            renderPositionNav(); // NEW FUNCTION CALL
+            renderSubHeader(); 
+            triggerUpdateAllUI(); 
+            updateSubHeaderVisibility('draft-team-view'); 
+        }
+
+        // NEW: Render the sticky position menu
+        function renderPositionNav() {
+            const container = uiElements.subHeader;
+            if (!container) return;
+            
+            // Clear previous
+            container.innerHTML = '';
+            
+            const wrapper = document.createElement('div');
+            wrapper.className = 'container mx-auto px-4 sm:px-6 lg:px-8';
+            
+            const scrollBox = document.createElement('div');
+            scrollBox.className = 'position-nav-container';
+            
+            const positions = ["QB", "RB", "WR", "TE", "DST", "K"];
+            
+            positions.forEach(pos => {
+                const btn = document.createElement('button');
+                btn.className = 'pos-chip';
+                btn.textContent = pos;
+                
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    
+                    // Visual Active State
+                    document.querySelectorAll('.pos-chip').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    
+                    // Scroll Logic
+                    const section = document.getElementById(`section-${pos}`);
+                    if (section) {
+                        const headerHeight = 64; 
+                        const subHeaderHeight = 60; 
+                        const elementPosition = section.getBoundingClientRect().top;
+                        const offsetPosition = elementPosition + window.pageYOffset - (headerHeight + subHeaderHeight + 20);
+            
+                        window.scrollTo({
+                            top: offsetPosition,
+                            behavior: "smooth"
+                        });
+                    }
+                });
+                
+                scrollBox.appendChild(btn);
+            });
+            
+            wrapper.appendChild(scrollBox);
+            container.appendChild(wrapper);
+        }
+
+        // Deprecated simple subheader, keeping empty function if called elsewhere
+        function renderSubHeader() {}
+
         function triggerUpdateAllUI() { if (updateUITimeout) clearTimeout(updateUITimeout); updateUITimeout = setTimeout(() => { updateSalaryUI(); updateRosterCount(); renderRosterSlots(); updatePlayerAvailabilityInPool(); checkRosterFull(); }, 50); }
         
         function updateSalaryUI() { 
@@ -581,6 +676,31 @@
         function updateRosterCount() { const c=Object.keys(appState.draftedPlayers).length; uiElements.rosterCountEl.textContent=c; document.getElementById('mobile-roster-count').textContent=c; }
         function checkRosterFull() { const f=Object.keys(appState.draftedPlayers).length===CONSTANTS.ROSTER_SIZE; uiElements.submitTeamButton.disabled=!f; document.getElementById('mobile-submit-btn').disabled=!f; }
         
+        function updatePlayerAvailabilityInPool() {
+            // Re-run through player cards to update disabled/drafted states
+            document.querySelectorAll('.player-card').forEach(card => {
+                const pid = card.dataset.playerId;
+                const player = appState.playersById[pid];
+                if (!player) return;
+                
+                // Reset classes
+                card.classList.remove('player-drafted', 'player-unavailable');
+                
+                if (appState.draftedPlayers[pid]) {
+                    card.classList.add('player-drafted');
+                } else {
+                    const teamCount = appState.teamCounts[player.team] || 0;
+                    const isTeamMaxed = teamCount >= CONSTANTS.MAX_PLAYERS_PER_TEAM;
+                    const isTooExpensive = (appState.currentSalarySpent + player.salary) > CONSTANTS.INITIAL_SALARY_CAP;
+                    const slot = findAvailableSlot(player.position);
+                    
+                    if (isTeamMaxed || isTooExpensive || !slot) {
+                        card.classList.add('player-unavailable');
+                    }
+                }
+            });
+        }
+
         function handlePlayerPoolClick(e) { const c=e.target.closest('.player-card'); const h=e.target.closest('.position-group h2'); if(h){h.parentElement.classList.toggle('hidden-section');return;} if(c&&!c.classList.contains('player-unavailable')&&!c.classList.contains('player-drafted')) draftPlayer(appState.playersById[c.dataset.playerId],c); }
         
         function draftPlayer(p,c) { 

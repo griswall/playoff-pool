@@ -29,42 +29,43 @@
             background-attachment: fixed; 
             color: #f8fafc; 
             min-height: 100vh;
-            /* Mobile footer padding */
-            padding-bottom: 120px; 
+            padding-bottom: 120px; /* Mobile Footer Space */
         }
-        /* Desktop: No bottom padding needed */
         @media (min-width: 1024px) { body { padding-bottom: 0; } }
 
-        /* Stable Glass UI */
+        /* UI Components */
         .glass-panel { background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.08); }
         .glass-header { background: rgba(2, 6, 23, 0.95); backdrop-filter: blur(16px); border-bottom: 1px solid rgba(255,255,255,0.05); }
         .sticky-nav { position: sticky; top: 64px; z-index: 30; background: rgba(2,6,23,0.95); border-bottom: 1px solid rgba(255,255,255,0.05); }
 
-        /* Navigation State */
+        /* Nav State */
+        .nav-link { cursor: pointer; transition: color 0.2s; }
         .nav-link.active { color: #00d084; }
         .nav-link.active::after { content: ''; position: absolute; bottom: -21px; left: 0; width: 100%; height: 3px; background: #00d084; }
+        .nav-link { position: relative; }
 
-        /* Player Card */
+        /* Cards */
         .player-card { 
             display: flex; align-items: center; justify-content: space-between; 
             background: rgba(30, 41, 59, 0.6); border: 1px solid rgba(255,255,255,0.08); 
             padding: 0.75rem; border-radius: 0.75rem; cursor: pointer; position: relative; overflow: hidden;
             transition: all 0.2s;
         }
-        .player-card:hover { border-color: #00d084; background: rgba(30, 41, 59, 0.9); }
+        @media(hover: hover) {
+            .player-card:hover:not(.player-drafted):not(.player-unavailable) { border-color: #00d084; background: rgba(30, 41, 59, 0.9); }
+        }
         .player-card.player-drafted { opacity: 0.5; filter: grayscale(100%); pointer-events: none; }
         .player-card.player-unavailable { opacity: 0.3; pointer-events: none; }
-        
         .draft-flash { animation: flash 0.5s ease-out; }
         @keyframes flash { 0% { background-color: #00d084; } 100% { background-color: rgba(30, 41, 59, 0.6); } }
 
         .player-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,255,255,0.1); background: #1e293b; }
         .player-fallback { display: none; background: #334155; color: #94a3b8; align-items: center; justify-content: center; font-weight: 700; font-size: 0.75rem; }
         
-        /* Mobile Footer */
+        /* Mobile */
         .mobile-footer { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(15, 23, 42, 0.98); border-top: 1px solid #00d084; padding: 12px 16px; z-index: 50; }
         
-        /* Utility */
+        /* Tabs */
         .tab-content { display: none; }
         .tab-content.active { display: block; }
         .loading-overlay { position: fixed; inset: 0; background: #020617; z-index: 100; display: flex; align-items: center; justify-content: center; }
@@ -85,29 +86,33 @@
             </div>
             
             <nav class="hidden lg:flex gap-6">
-                <a href="#draft" class="nav-link active text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-white py-5">Draft</a>
-                <a href="#scores" class="nav-link text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-white py-5">Scores</a>
-                <a href="#standings" class="nav-link text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-white py-5">Standings</a>
-                <a href="#rules" class="nav-link text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-white py-5">Rules</a>
-                <a href="my-teams.html" class="text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-white py-5">My Teams</a>
+                <a href="#draft-team-view" class="nav-link active text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-white py-5">Draft</a>
+                <a href="#player-scores-view" class="nav-link text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-white py-5">Scores</a>
+                <a href="#standings-view" class="nav-link text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-white py-5">Standings</a>
+                <a href="#rules-view" class="nav-link text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-white py-5">Rules</a>
+                <a href="admin.html" id="nav-admin" class="hidden text-yellow-400 text-xs font-bold uppercase border border-yellow-400 rounded-full px-3 py-1 hover:bg-yellow-400/10">Admin</a>
             </nav>
 
-            <div class="flex items-center gap-4">
-                <a href="login.html" id="login-btn" class="bg-white text-black px-4 py-1.5 rounded text-xs font-bold uppercase">Sign In</a>
-                <button id="logout-btn" class="hidden text-xs font-bold text-gray-400 uppercase hover:text-white">Logout</button>
+            <div id="user-auth-section" class="flex items-center gap-4">
+                <a href="login.html" id="login-button" class="bg-white text-black px-4 py-1.5 rounded text-xs font-bold uppercase">Sign In</a>
+                <div id="user-profile-section" class="hidden items-center gap-4">
+                    <a href="my-teams.html" class="text-xs font-bold text-gray-400 uppercase hover:text-[#00d084]">My Teams</a>
+                    <button id="logout-button" class="text-xs font-bold text-gray-500 uppercase hover:text-white">Logout</button>
+                </div>
             </div>
         </div>
     </header>
 
-    <nav id="sub-header" class="sticky-nav hidden">
-        <div class="container mx-auto px-4 py-3 flex gap-2 overflow-x-auto no-scrollbar" id="pos-links"></div>
+    <nav id="sub-header" class="sticky-nav">
+        <div class="container mx-auto px-4 py-3 flex gap-2 overflow-x-auto no-scrollbar" id="pos-links">
+            </div>
     </nav>
 
     <main class="container mx-auto px-4 py-6">
         
-        <div id="draft-view" class="tab-content active">
+        <div id="draft-team-view" class="tab-content active">
             <div class="flex flex-col lg:flex-row gap-8">
-                <div class="w-full lg:w-3/4 space-y-8 pb-24" id="player-pool"></div>
+                <div class="w-full lg:w-3/4 space-y-8 pb-24" id="player-pool-container"></div>
 
                 <aside class="hidden lg:block w-1/4 space-y-6 sticky top-32 self-start">
                     <div class="glass-panel rounded-xl p-6">
@@ -116,22 +121,23 @@
                             <span class="text-xl font-bold text-white font-mono" id="salary-display">$38.5M</span>
                         </div>
                         <div class="h-2 bg-gray-800 rounded-full overflow-hidden mb-4">
-                            <div id="salary-bar" class="h-full bg-[#00d084] w-0 transition-all duration-500"></div>
+                            <div id="salary-progress-bar" class="h-full bg-[#00d084] w-0 transition-all duration-500"></div>
                         </div>
                         
                         <h3 class="text-xs font-bold text-gray-400 uppercase mb-3">Your Roster (<span id="roster-count">0</span>/10)</h3>
-                        <div id="roster-list" class="space-y-2"></div>
+                        <div id="roster-slots-container" class="space-y-2"></div>
                         
-                        <button id="submit-btn" disabled class="w-full mt-6 bg-[#00d084] hover:bg-[#00a366] text-black font-bold py-3 rounded-lg disabled:opacity-50 transition-all uppercase">Submit Team</button>
+                        <button id="submit-team-button" disabled class="w-full mt-6 bg-[#00d084] hover:bg-[#00a366] text-black font-bold py-3 rounded-lg disabled:opacity-50 transition-all uppercase">Submit Team</button>
+                        <p id="submit-team-message" class="text-xs text-center mt-2 text-gray-500"></p>
                     </div>
                 </aside>
             </div>
         </div>
 
-        <div id="scores-view" class="tab-content">
-            <div class="glass-panel rounded-xl p-6" id="scores-container">
+        <div id="player-scores-view" class="tab-content">
+            <div class="glass-panel rounded-xl p-6" id="player-scores-list">
                 <h2 class="text-2xl font-bold text-white mb-6">Player Scores</h2>
-                </div>
+            </div>
         </div>
 
         <div id="standings-view" class="tab-content">
@@ -141,7 +147,7 @@
                     <thead class="text-xs text-gray-400 uppercase bg-gray-900">
                         <tr><th class="px-4 py-3">Rank</th><th class="px-4 py-3">Team</th><th class="px-4 py-3 text-right">Points</th></tr>
                     </thead>
-                    <tbody id="standings-body" class="divide-y divide-gray-800"></tbody>
+                    <tbody id="standings-table-body" class="divide-y divide-gray-800"></tbody>
                 </table>
             </div>
         </div>
@@ -166,37 +172,35 @@
             <div class="text-lg font-mono font-bold text-[#00d084]" id="mob-salary">$38.5M</div>
         </div>
         <div class="flex gap-3">
-            <button id="mob-my-team-btn" class="bg-gray-800 border border-gray-600 text-white px-4 py-2 rounded-lg text-xs font-bold uppercase">My Team</button>
-            <button id="mob-submit-btn" disabled class="bg-[#00d084] text-black px-4 py-2 rounded-lg text-xs font-bold uppercase disabled:opacity-50">Submit</button>
-        </div>
-    </div>
-
-    <div id="roster-modal" class="fixed inset-0 bg-black/90 z-[60] hidden flex flex-col justify-end">
-        <div class="bg-[#1e293b] rounded-t-2xl p-4 max-h-[80vh] overflow-y-auto">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-white font-bold uppercase">Your Lineup</h3>
-                <button id="close-roster-btn" class="text-gray-400 hover:text-white">Close</button>
-            </div>
-            <div id="mob-roster-list" class="space-y-2"></div>
+            <a href="my-teams.html" class="bg-gray-800 border border-gray-600 text-white px-4 py-2 rounded-lg text-xs font-bold uppercase">My Teams</a>
+            <button id="mobile-submit-btn" disabled class="bg-[#00d084] text-black px-4 py-2 rounded-lg text-xs font-bold uppercase disabled:opacity-50">Submit</button>
         </div>
     </div>
 
     <div id="prompt-modal" class="fixed inset-0 bg-black/80 z-[70] hidden flex items-center justify-center p-4">
         <div class="bg-[#1e293b] border border-gray-700 rounded-xl p-6 w-full max-w-sm">
             <h3 class="text-white font-bold text-xl mb-2">Name Team</h3>
-            <input type="text" id="team-name-input" class="w-full bg-gray-900 border border-gray-700 rounded p-3 text-white mb-4 focus:border-[#00d084] outline-none" placeholder="e.g. Mahomes Magic">
+            <input type="text" id="prompt-modal-input" class="w-full bg-gray-900 border border-gray-700 rounded p-3 text-white mb-4 focus:border-[#00d084] outline-none" placeholder="e.g. Mahomes Magic">
+            <div id="prompt-modal-error" class="hidden text-red-500 text-xs mb-3"></div>
             <div class="flex justify-end gap-3">
-                <button id="cancel-submit-btn" class="text-gray-400 px-4 py-2 text-sm font-bold">Cancel</button>
-                <button id="confirm-submit-btn" class="bg-[#00d084] text-black px-6 py-2 rounded font-bold text-sm">Save</button>
+                <button id="prompt-modal-cancel-btn" class="text-gray-400 px-4 py-2 text-sm font-bold">Cancel</button>
+                <button id="prompt-modal-confirm-btn" class="bg-[#00d084] text-black px-6 py-2 rounded font-bold text-sm">Save</button>
             </div>
+        </div>
+    </div>
+
+    <div id="alert-modal" class="fixed inset-0 bg-black/80 z-[80] hidden flex items-center justify-center p-4">
+        <div class="bg-[#1e293b] border border-gray-700 rounded-xl p-6 w-full max-w-sm text-center">
+            <h3 id="alert-modal-title" class="text-white font-bold text-lg mb-2">Notice</h3>
+            <p id="alert-modal-message" class="text-gray-400 text-sm mb-4"></p>
+            <button id="alert-modal-close-btn" class="bg-gray-700 text-white w-full py-2 rounded font-bold text-sm">Close</button>
         </div>
     </div>
 
     <script type="module">
         import { getSupabaseClient, checkIsAdmin, clearAdminCache } from './scripts/supabaseClient.js';
-        let supabase = null;
         
-        // STATE
+        let supabase;
         const STATE = {
             user: null,
             salaryCap: 38500000,
@@ -204,102 +208,91 @@
             roster: { QB: null, RB1: null, RB2: null, RB3: null, WR1: null, WR2: null, WR3: null, FLEX: null, DST: null, K: null },
             draftedIds: new Set(),
             teamCounts: {},
-            players: {}, // ID -> Player Object
+            players: {},
             byPos: { QB:[], RB:[], WR:[], TE:[], DST:[], K:[] },
             editingId: null
         };
-
+        
         const SLOTS = ["QB", "RB1", "RB2", "RB3", "WR1", "WR2", "WR3", "FLEX", "DST", "K"];
+        // Updated roster config for simpler logic
+        const SLOT_CONFIG = { QB:["QB"], RB:["RB1","RB2","RB3"], WR:["WR1","WR2","WR3"], TE:["FLEX"], K:["K"], DST:["DST"] };
 
         document.addEventListener('DOMContentLoaded', async () => {
             try {
                 supabase = getSupabaseClient();
                 await initApp();
-            } catch (e) {
-                console.error("Init Error:", e);
-                document.getElementById('loading-overlay').classList.add('hidden');
+            } catch(e) { 
+                console.error(e); 
+                document.getElementById('loading-overlay').classList.add('hidden'); 
             }
-        });
-
-        async function initApp() {
-            // 1. Auth
-            const { data } = await supabase.auth.getSession();
-            if (!data.session) { window.location.href = "login.html"; return; }
-            STATE.user = data.session.user;
             
-            // 2. UI Setup
-            setupNav();
-            
-            // 3. Load Data
-            await loadData();
-            
-            // 4. Admin Check
-            const isAdmin = await checkIsAdmin();
-            if(isAdmin) document.getElementById('nav-admin').classList.remove('hidden');
-
-            // 5. Check Edit Mode
-            const params = new URLSearchParams(window.location.search);
-            if (params.get('edit_team_id')) await loadTeam(params.get('edit_team_id'));
-
-            document.getElementById('loading-overlay').classList.add('hidden');
-        }
-
-        // --- NAVIGATION ---
-        function setupNav() {
+            // Attach Nav Listeners
             document.querySelectorAll('a.nav-link').forEach(link => {
                 link.addEventListener('click', (e) => {
                     e.preventDefault();
                     switchTab(link.getAttribute('href').substring(1));
                 });
             });
-            // Mobile menu logic here if needed, keeping it simple for stability
+
+            // Attach Button Listeners
+            document.getElementById('submit-team-button').onclick = handleSubmit;
+            document.getElementById('mobile-submit-btn').onclick = handleSubmit;
+            document.getElementById('prompt-modal-cancel-btn').onclick = () => document.getElementById('prompt-modal').classList.add('hidden');
+            document.getElementById('prompt-modal-confirm-btn').onclick = confirmSubmit;
+            document.getElementById('alert-modal-close-btn').onclick = () => document.getElementById('alert-modal').classList.add('hidden');
+            document.getElementById('logout-button').onclick = async () => { await supabase.auth.signOut(); window.location.href="login.html"; };
+        });
+
+        async function initApp() {
+            const { data } = await supabase.auth.getSession();
+            if (!data.session) { window.location.href = "login.html"; return; }
+            STATE.user = data.session.user;
+            
+            // Show Logged In UI
+            document.getElementById('login-button').classList.add('hidden');
+            document.getElementById('user-profile-section').classList.remove('hidden');
+            document.getElementById('user-profile-section').style.display = 'flex';
+
+            if (await checkIsAdmin()) document.getElementById('nav-admin').classList.remove('hidden');
+
+            await loadData();
+            
+            // Check for edit mode
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('edit_team_id')) await loadTeam(params.get('edit_team_id'));
+            
+            document.getElementById('loading-overlay').classList.add('hidden');
         }
 
         function switchTab(tabId) {
-            // Hide all views
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
             
-            // Show target
-            document.getElementById(tabId + '-view').classList.add('active');
-            const activeLink = document.querySelector(`a[href="#${tabId}"]`);
-            if(activeLink) activeLink.classList.add('active');
+            document.getElementById(tabId + '-view').classList.add('active'); // e.g. draft-team-view
+            const link = document.querySelector(`a[href="#${tabId}"]`);
+            if(link) link.classList.add('active');
 
-            // Toggle Sub-Header
             const subHeader = document.getElementById('sub-header');
-            if (tabId === 'draft') subHeader.classList.remove('hidden');
+            if (tabId === 'draft-team') subHeader.classList.remove('hidden');
             else subHeader.classList.add('hidden');
-
-            // Render specific tab data
-            if (tabId === 'scores') renderScores();
-            if (tabId === 'standings') renderStandings();
             
+            if(tabId === 'player-scores') renderScores();
+            if(tabId === 'standings') renderStandings();
             window.scrollTo(0,0);
         }
 
-        // --- DATA LOADING ---
         async function loadData() {
-            const [pRes, sRes] = await Promise.all([
-                supabase.from('players').select('*'),
-                supabase.from('player_scores').select('*')
-            ]);
-
-            // Map Scores
+            const [pRes, sRes] = await Promise.all([supabase.from('players').select('*'), supabase.from('player_scores').select('*')]);
             const scores = {};
-            (sRes.data || []).forEach(s => {
-                if(!scores[s.player_id]) scores[s.player_id] = { total: 0, rounds: {} };
+            (sRes.data||[]).forEach(s => {
+                if(!scores[s.player_id]) scores[s.player_id] = { total:0, rounds:{} };
                 scores[s.player_id].rounds[s.playoff_round] = s.points;
                 scores[s.player_id].total += s.points;
             });
 
-            // Process Players
             pRes.data.forEach(p => {
-                p.stats = scores[p.id] || { total: 0, rounds: {} };
-                // *** FIX: Reliable Image URL Fallback ***
-                p.final_image = p.image_url || (p.position === 'DST' 
-                    ? `https://a.espncdn.com/i/teamlogos/nfl/500/${p.espn_id}.png`
-                    : `https://a.espncdn.com/i/headshots/nfl/players/full/${p.espn_id}.png`);
-                
+                p.stats = scores[p.id] || { total:0, rounds:{} };
+                p.final_image = p.image_url || (p.position==='DST' ? `https://a.espncdn.com/i/teamlogos/nfl/500/${p.espn_id}.png` : `https://a.espncdn.com/i/headshots/nfl/players/full/${p.espn_id}.png`);
                 STATE.players[p.id] = p;
                 if(STATE.byPos[p.position]) STATE.byPos[p.position].push(p);
             });
@@ -309,257 +302,152 @@
             renderRoster();
         }
 
-        // --- RENDERING ---
         function renderSubLinks() {
             const c = document.getElementById('pos-links');
-            c.innerHTML = Object.keys(STATE.byPos).map(pos => 
-                `<a href="#pos-${pos}" class="flex-shrink-0 px-4 py-1.5 rounded-full text-[10px] font-bold uppercase border border-gray-700 bg-gray-900 text-gray-400 hover:text-white hover:border-[#00d084] transition-colors">${pos}</a>`
-            ).join('');
+            c.innerHTML = Object.keys(STATE.byPos).map(k => `<a href="#pos-${k}" class="flex-shrink-0 px-4 py-1.5 rounded-full text-[10px] font-bold uppercase border border-gray-700 bg-gray-900 text-gray-400 hover:text-white hover:border-[#00d084] transition-colors">${k}</a>`).join('');
         }
 
         function renderDraftPool() {
-            const c = document.getElementById('player-pool');
+            const c = document.getElementById('player-pool-container');
             c.innerHTML = '';
-            
-            ["QB", "RB", "WR", "TE", "DST", "K"].forEach(pos => {
+            ["QB","RB","WR","TE","DST","K"].forEach(pos => {
                 const players = STATE.byPos[pos];
-                if (!players || players.length === 0) return;
-                
+                if(!players) return;
                 const sec = document.createElement('div');
                 sec.id = `pos-${pos}`;
-                sec.innerHTML = `
-                    <h2 class="text-xl font-black text-white mb-4 flex items-center gap-4 sticky top-28 bg-[#020617]/95 py-2 z-20 backdrop-blur">
-                        ${pos} <span class="h-px flex-grow bg-gray-800"></span>
-                    </h2>
-                    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-                        ${players.sort((a,b) => b.salary - a.salary).map(p => buildCardHTML(p)).join('')}
-                    </div>
-                `;
+                sec.innerHTML = `<h2 class="text-xl font-black text-white mb-4 flex items-center gap-4 sticky top-28 bg-[#020617]/95 py-2 z-20 backdrop-blur">${pos}<span class="h-px flex-grow bg-gray-800"></span></h2><div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3"></div>`;
+                const grid = sec.querySelector('.grid');
+                players.sort((a,b) => b.salary - a.salary).forEach(p => {
+                    const div = document.createElement('div');
+                    div.className = `player-card group ${STATE.draftedIds.has(p.id) ? 'player-drafted' : ''} ${(STATE.spent+p.salary > STATE.salaryCap) ? 'player-unavailable' : ''}`;
+                    div.innerHTML = `<div class="flex items-center gap-3 overflow-hidden"><div class="relative w-10 h-10 shrink-0"><img src="${p.final_image}" class="player-avatar w-full h-full" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="player-fallback player-avatar absolute inset-0 w-full h-full hidden" style="display:none">${p.name.charAt(0)}</div></div><div class="min-w-0"><div class="text-sm font-bold text-white truncate group-hover:text-[#00d084]">${p.name}</div><div class="text-[10px] font-bold text-gray-500 uppercase">${p.position} • ${p.team}</div></div></div><div class="text-right shrink-0"><div class="text-sm font-mono font-bold text-[#00d084]">$${(p.salary/1000000).toFixed(1)}M</div></div>`;
+                    div.onclick = () => draftPlayer(p);
+                    grid.appendChild(div);
+                });
                 c.appendChild(sec);
             });
-
-            // Attach listeners
-            document.querySelectorAll('.player-card').forEach(card => {
-                card.addEventListener('click', () => draftPlayer(card.dataset.id));
-            });
         }
 
-        function buildCardHTML(p) {
-            const isDrafted = STATE.draftedIds.has(p.id);
-            const isFull = (STATE.teamCounts[p.team] || 0) >= 3;
-            const cantAfford = (STATE.salaryCap - STATE.spent) < p.salary;
-            const disabled = isDrafted || (isFull && !isDrafted) || (cantAfford && !isDrafted);
+        function draftPlayer(p) {
+            if(STATE.draftedIds.has(p.id)) return;
+            if(STATE.spent + p.salary > STATE.salaryCap) { alert("Cap Exceeded"); return; }
+            if((STATE.teamCounts[p.team]||0) >= 3) { alert("Max 3 per team"); return; }
             
-            let classes = "player-card group";
-            if (isDrafted) classes += " player-drafted";
-            else if (disabled) classes += " player-unavailable";
-
-            return `
-            <div class="${classes}" data-id="${p.id}">
-                <div class="flex items-center gap-3 overflow-hidden">
-                    <div class="relative w-10 h-10 shrink-0">
-                        <img src="${p.final_image}" class="player-avatar w-full h-full" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-                        <div class="player-fallback player-avatar absolute inset-0 w-full h-full">${p.name.charAt(0)}</div>
-                    </div>
-                    <div class="min-w-0">
-                        <div class="text-sm font-bold text-white truncate leading-tight group-hover:text-[#00d084]">${p.name}</div>
-                        <div class="text-[10px] font-bold text-gray-500 uppercase">${p.position} • ${p.team}</div>
-                    </div>
-                </div>
-                <div class="text-right shrink-0">
-                    <div class="text-sm font-mono font-bold text-[#00d084]">$${(p.salary/1000000).toFixed(1)}M</div>
-                </div>
-            </div>`;
-        }
-
-        function renderRoster() {
-            const html = SLOTS.map(slot => {
-                const p = STATE.roster[slot];
-                if (p) {
-                    return `
-                    <div class="flex justify-between items-center p-2 bg-gray-800/50 border border-[#00d084]/30 rounded group">
-                        <div class="flex items-center gap-2 overflow-hidden">
-                            <span class="text-[10px] font-bold text-gray-500 w-8 shrink-0">${slot.replace(/\d/,'')}</span>
-                            <span class="text-sm font-bold text-white truncate">${p.name}</span>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <span class="font-mono text-xs text-[#00d084]">$${(p.salary/1000000).toFixed(1)}M</span>
-                            <button onclick="removePlayer('${slot}')" class="text-gray-500 hover:text-red-500">✕</button>
-                        </div>
-                    </div>`;
-                } else {
-                    return `
-                    <div class="flex justify-between items-center p-2 bg-gray-800/30 border border-gray-800 rounded">
-                        <span class="text-[10px] font-bold text-gray-600 w-8">${slot.replace(/\d/,'')}</span>
-                        <span class="text-xs text-gray-700 italic">Empty</span>
-                    </div>`;
-                }
-            }).join('');
-
-            document.getElementById('roster-list').innerHTML = html;
-            document.getElementById('mob-roster-list').innerHTML = html; // Mirror to mobile drawer
-
-            // Update Totals
-            const rem = STATE.salaryCap - STATE.spent;
-            document.getElementById('salary-display').textContent = `$${(rem/1000000).toFixed(1)}M`;
-            document.getElementById('mob-salary').textContent = `$${(rem/1000000).toFixed(1)}M`;
-            document.getElementById('salary-bar').style.width = `${(STATE.spent / STATE.salaryCap) * 100}%`;
-            
-            const count = STATE.draftedIds.size;
-            document.getElementById('roster-count').textContent = count;
-            
-            const valid = count === 10 && rem >= 0;
-            document.getElementById('submit-btn').disabled = !valid;
-            document.getElementById('mob-submit-btn').disabled = !valid;
-            
-            // Re-render pool to update gray-out states
-            renderDraftPool();
-        }
-
-        // --- ACTIONS ---
-        window.draftPlayer = (id) => {
-            const p = STATE.players[id];
-            if (!p) return;
-            
-            // Logic check
-            if (STATE.draftedIds.has(p.id)) return;
-            if ((STATE.teamCounts[p.team] || 0) >= 3) { alert("Max 3 players per team."); return; }
-            if (STATE.spent + p.salary > STATE.salaryCap) { alert("Not enough salary."); return; }
-
-            // Find Slot
             let slot = null;
-            // Specific slot check
-            if (["QB", "DST", "K"].includes(p.position)) {
-                if (!STATE.roster[p.position]) slot = p.position;
-            } else {
-                // Flex Logic
-                const options = rosterSlotConfig[p.position] || []; // Need config?
-                // Simple hardcoded logic for speed
-                if (p.position === 'RB') {
-                    if(!STATE.roster.RB1) slot='RB1'; else if(!STATE.roster.RB2) slot='RB2'; else if(!STATE.roster.RB3) slot='RB3'; else if(!STATE.roster.FLEX) slot='FLEX';
-                } else if (p.position === 'WR') {
-                    if(!STATE.roster.WR1) slot='WR1'; else if(!STATE.roster.WR2) slot='WR2'; else if(!STATE.roster.WR3) slot='WR3'; else if(!STATE.roster.FLEX) slot='FLEX';
-                } else if (p.position === 'TE') {
-                    if(!STATE.roster.FLEX) slot='FLEX';
-                }
-            }
-
-            if (slot) {
+            const options = SLOT_CONFIG[p.position] || [];
+            for(let s of options) if(!STATE.roster[s]) { slot=s; break; }
+            
+            // Flex fallback
+            if(!slot && ["RB","WR","TE"].includes(p.position) && !STATE.roster['FLEX']) slot='FLEX';
+            
+            if(slot) {
                 STATE.roster[slot] = p;
                 STATE.draftedIds.add(p.id);
                 STATE.spent += p.salary;
-                STATE.teamCounts[p.team] = (STATE.teamCounts[p.team] || 0) + 1;
+                STATE.teamCounts[p.team] = (STATE.teamCounts[p.team]||0) + 1;
                 renderRoster();
+                renderDraftPool(); // Update UI states
             } else {
-                alert("No open slot for this position.");
+                alert("No slot available");
             }
-        };
+        }
 
         window.removePlayer = (slot) => {
             const p = STATE.roster[slot];
-            if (!p) return;
+            if(!p) return;
             STATE.roster[slot] = null;
             STATE.draftedIds.delete(p.id);
             STATE.spent -= p.salary;
             STATE.teamCounts[p.team]--;
             renderRoster();
+            renderDraftPool();
         };
 
-        // --- SUBMIT ---
-        const promptModal = document.getElementById('prompt-modal');
-        document.getElementById('submit-btn').onclick = () => startSubmit();
-        document.getElementById('mob-submit-btn').onclick = () => startSubmit();
-        document.getElementById('cancel-submit-btn').onclick = () => promptModal.classList.add('hidden');
-        
-        function startSubmit() {
-            if(STATE.editingId) submitTeam(null); // Updating
-            else promptModal.classList.remove('hidden'); // New
-        }
-        
-        document.getElementById('confirm-submit-btn').onclick = () => {
-            const name = document.getElementById('team-name-input').value;
-            if(name) submitTeam(name);
-        };
-
-        async function submitTeam(name) {
-            promptModal.classList.add('hidden');
-            document.getElementById('loading-overlay').classList.remove('hidden');
+        function renderRoster() {
+            const html = SLOTS.map(slot => {
+                const p = STATE.roster[slot];
+                if(p) return `<div class="flex justify-between items-center p-2 bg-gray-800/50 border border-[#00d084]/30 rounded"><div class="flex items-center gap-2 overflow-hidden"><span class="text-[10px] font-bold text-gray-500 w-8 shrink-0">${slot.replace(/\d/,'')}</span><span class="text-sm font-bold text-white truncate">${p.name}</span></div><div class="flex items-center gap-2"><span class="font-mono text-xs text-[#00d084]">$${(p.salary/1000000).toFixed(1)}M</span><button onclick="removePlayer('${slot}')" class="text-gray-500 hover:text-red-500">✕</button></div></div>`;
+                return `<div class="flex justify-between items-center p-2 bg-gray-800/30 border border-gray-800 rounded"><span class="text-[10px] font-bold text-gray-600 w-8">${slot.replace(/\d/,'')}</span><span class="text-xs text-gray-700 italic">Empty</span></div>`;
+            }).join('');
+            document.getElementById('roster-slots-container').innerHTML = html;
+            document.getElementById('roster-count').textContent = STATE.draftedIds.size;
+            const rem = STATE.salaryCap - STATE.spent;
+            document.getElementById('salary-display').textContent = `$${(rem/1000000).toFixed(1)}M`;
+            document.getElementById('mob-salary').textContent = `$${(rem/1000000).toFixed(1)}M`;
+            document.getElementById('salary-bar').style.width = `${(STATE.spent/STATE.salaryCap)*100}%`;
             
+            const isValid = STATE.draftedIds.size === 10 && rem >= 0;
+            document.getElementById('submit-team-button').disabled = !isValid;
+            document.getElementById('mobile-submit-btn').disabled = !isValid;
+        }
+
+        function handleSubmit() {
+            if(STATE.editingId) confirmSubmit();
+            else document.getElementById('prompt-modal').classList.remove('hidden');
+        }
+
+        async function confirmSubmit() {
+            const name = document.getElementById('team-name-input').value;
+            if(!STATE.editingId && !name) { alert("Enter a name"); return; }
+            document.getElementById('prompt-modal').classList.add('hidden');
+            document.getElementById('loading-overlay').classList.remove('hidden');
             try {
                 let tid = STATE.editingId;
-                
-                if (!tid) {
-                    // Create Team
-                    const { data, error } = await supabase.from('user_teams').insert({
-                        user_id: STATE.user.id,
-                        team_name: name
-                    }).select().single();
-                    if (error) throw error;
+                if(!tid) {
+                    const {data, error} = await supabase.from('user_teams').insert({user_id: STATE.user.id, team_name: name}).select().single();
+                    if(error) throw error;
                     tid = data.id;
                 }
-                
-                // Save Players
-                const payload = [];
-                Object.entries(STATE.roster).forEach(([slot, p]) => {
-                    if(p) payload.push({ team_id: tid, player_id: p.id, roster_slot: slot });
-                });
-
-                // Clear old
+                const pl = [];
+                Object.entries(STATE.roster).forEach(([k,v]) => { if(v) pl.push({team_id: tid, player_id: v.id, roster_slot: k}); });
                 await supabase.from('team_players').delete().eq('team_id', tid);
-                // Insert new
-                await supabase.from('team_players').insert(payload);
-
-                alert("Team Saved Successfully!");
+                await supabase.from('team_players').insert(pl);
+                alert("Team Saved!");
                 window.location.href = "my-teams.html";
-
-            } catch (e) {
-                alert("Error: " + e.message);
+            } catch(e) {
+                alert(e.message);
                 document.getElementById('loading-overlay').classList.add('hidden');
             }
         }
 
-        // --- STANDINGS & SCORES ---
+        async function loadTeam(tid) {
+            const {data} = await supabase.from('user_teams').select(`id, team_name, team_players(roster_slot, players(*))`).eq('id',tid).single();
+            STATE.editingId = data.id;
+            data.team_players.forEach(tp => {
+                const p = STATE.players[tp.players.id];
+                if(p) {
+                    STATE.roster[tp.roster_slot] = p;
+                    STATE.draftedIds.add(p.id);
+                    STATE.spent += p.salary;
+                    STATE.teamCounts[p.team] = (STATE.teamCounts[p.team]||0)+1;
+                }
+            });
+            document.getElementById('submit-team-button').textContent = "Update";
+            renderRoster();
+        }
+
         function renderScores() {
-            const c = document.getElementById('scores-container');
-            // Simple list render
-            let html = `<h2 class="text-2xl font-bold text-white mb-6">Player Scores</h2>`;
-            ["QB", "RB", "WR", "TE", "DST", "K"].forEach(pos => {
+            const c = document.getElementById('player-scores-list');
+            c.innerHTML = '';
+            ["QB","RB","WR","TE","DST","K"].forEach(pos => {
                 const list = STATE.byPos[pos].sort((a,b) => b.stats.total - a.stats.total);
-                html += `<div class="mb-8"><h3 class="text-lg font-bold text-[#00d084] border-b border-gray-800 pb-2 mb-2">${pos}</h3>`;
-                html += `<table class="w-full text-sm text-gray-400"><thead><tr class="text-xs uppercase"><th>Player</th><th class="text-right">Total</th></tr></thead><tbody>`;
+                let html = `<div class="mb-8"><h3 class="text-lg font-bold text-[#00d084] border-b border-gray-800 pb-2 mb-2">${pos}</h3><table class="w-full text-sm text-gray-400"><thead><tr class="text-xs uppercase"><th>Player</th><th class="text-center">WC</th><th class="text-center">DIV</th><th class="text-center">CONF</th><th class="text-center">SB</th><th class="text-right">Total</th></tr></thead><tbody>`;
                 list.forEach(p => {
-                    html += `<tr><td class="py-2 text-white">${p.name} <span class="text-xs text-gray-600">${p.team}</span></td><td class="text-right font-mono text-[#00d084]">${p.stats.total}</td></tr>`;
+                    html += `<tr><td class="py-2 text-white">${p.name} <span class="text-xs text-gray-600">${p.team}</span></td><td class="text-center">${p.stats.rounds['WC']||0}</td><td class="text-center">${p.stats.rounds['DIV']||0}</td><td class="text-center">${p.stats.rounds['CONF']||0}</td><td class="text-center">${p.stats.rounds['SB']||0}</td><td class="text-right font-mono text-[#00d084]">${p.stats.total}</td></tr>`;
                 });
                 html += `</tbody></table></div>`;
+                c.innerHTML += html;
             });
-            c.innerHTML = html;
         }
 
         async function renderStandings() {
-            const { data } = await supabase.rpc('get_standings');
-            const tbody = document.getElementById('standings-body');
-            tbody.innerHTML = '';
-            if(data) {
-                data.forEach((t, i) => {
-                    tbody.innerHTML += `<tr><td class="px-6 py-4 text-[#00d084] font-mono">#${t.rank}</td><td class="px-6 py-4 text-white font-bold">${t.team_name}</td><td class="px-6 py-4 text-right font-mono text-[#00d084]">${t.total_points.toFixed(1)}</td></tr>`;
-                });
-            }
+            const {data} = await supabase.rpc('get_standings');
+            const tb = document.getElementById('standings-table-body');
+            tb.innerHTML = '';
+            if(data) data.forEach(t => {
+                tb.innerHTML += `<tr><td class="px-6 py-4 text-[#00d084] font-mono">#${t.rank}</td><td class="px-6 py-4 text-white font-bold">${t.team_name}</td><td class="px-6 py-4 text-right font-mono text-[#00d084]">${t.total_points.toFixed(1)}</td></tr>`;
+            });
         }
-        
-        // Mobile Drawer Logic
-        document.getElementById('mob-my-team-btn').onclick = () => {
-            document.getElementById('roster-modal').classList.remove('hidden');
-        };
-        document.getElementById('close-roster-btn').onclick = () => {
-            document.getElementById('roster-modal').classList.add('hidden');
-        };
-        
-        // Logout
-        document.getElementById('logout-btn').onclick = async () => {
-            await supabase.auth.signOut();
-            window.location.href = "login.html";
-        };
-
     </script>
 </body>
 </html>

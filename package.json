@@ -1,0 +1,21 @@
+{
+  "name": "hurd-playoff-pool",
+  "private": true,
+  "type": "module",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node --test tests/score-import.test.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.119.2",
+    "papaparse": "5.5.3"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.12",
+    "tailwindcss": "3.4.19"
+  }
+}

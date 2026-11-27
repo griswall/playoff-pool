@@ -2,106 +2,17 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <meta name="apple-mobile-web-app-title" content="Hurd Pool">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#020617">
     <title>My Teams - Hurd NFL Playoff Pool</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                        mono: ['JetBrains Mono', 'monospace'],
-                    },
-                    colors: {
-                        brand: {
-                            DEFAULT: '#00d084',
-                            dark: '#00a366',
-                            glow: 'rgba(0, 208, 132, 0.5)'
-                        },
-                        surface: {
-                            100: '#1e293b',
-                            200: '#334155',
-                            300: '#475569',
-                            800: '#0f172a',
-                            900: '#020617',
-                        }
-                    },
-                    backgroundImage: {
-                        'main-gradient': 'radial-gradient(circle at 50% 0%, #1e293b 0%, #020617 80%)',
-                    }
-                }
-            }
-        }
-    </script>
 
-    <style>
-        :root {
-            --card-border: rgba(255, 255, 255, 0.08);
-        }
-        
-        body {
-            background: #020617;
-            background-image: radial-gradient(circle at 50% -20%, #1e293b 0%, #020617 60%);
-            background-attachment: fixed;
-            color: #f8fafc;
-            min-height: 100vh;
-        }
-
-        /* Glassmorphism */
-        .glass-header {
-            background: rgba(2, 6, 23, 0.95);
-            backdrop-filter: blur(16px);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        }
-        .glass-panel {
-            background: rgba(15, 23, 42, 0.6);
-            backdrop-filter: blur(12px);
-            border: 1px solid var(--card-border);
-        }
-
-        /* Interactive Nav Links */
-        .nav-link { color: #94a3b8; transition: all 0.3s ease; }
-        .nav-link:hover { color: white; }
-        
-        /* Accordion Animation */
-        .team-body {
-            max-height: 2000px; /* Arbitrary large height */
-            opacity: 1;
-            transform: translateY(0);
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            overflow: hidden;
-        }
-        .team-collapsed .team-body {
-            max-height: 0;
-            opacity: 0;
-            transform: translateY(-10px);
-        }
-        .collapse-icon { transition: transform 0.3s ease; }
-        .team-collapsed .collapse-icon { transform: rotate(-90deg); }
-
-        /* Modal */
-        .modal-overlay {
-            background: rgba(0,0,0,0.8);
-            backdrop-filter: blur(4px);
-            z-index: 100;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.2s ease;
-        }
-        .modal-overlay.active { opacity: 1; pointer-events: auto; }
-
-        /* Loading */
-        .loading-overlay { background: rgba(2, 6, 23, 0.9); z-index: 9999; }
-    </style>
+    <link rel="stylesheet" href="./assets/pool.css">
+    <link rel="stylesheet" href="./assets/my-teams.css">
+    <script type="module" src="./assets/my-teams.js"></script>
 </head>
 <body class="antialiased selection:bg-brand selection:text-black">
 
@@ -140,6 +51,7 @@
             </div>
         </div>
     </header>
+    <p id="page-status" hidden role="status" aria-live="polite" class="mx-auto max-w-3xl p-3 text-amber-200"></p>
 
     <main class="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div class="max-w-4xl mx-auto">
@@ -168,7 +80,7 @@
         <p class="text-gray-600 text-sm font-medium">&copy; 2025 Hurd NFL Playoff Pool.</p>
     </footer>
 
-    <div id="confirm-modal" class="modal-overlay fixed inset-0 flex items-center justify-center p-4">
+    <dialog id="confirm-modal" aria-labelledby="confirm-modal-title">
         <div class="bg-surface-800 border border-white/10 rounded-xl p-6 max-w-sm w-full shadow-2xl transform scale-100 transition-all">
             <h3 id="confirm-modal-title" class="text-xl font-black text-white mb-2 italic uppercase">Delete Team?</h3>
             <p id="confirm-modal-message" class="text-gray-400 mb-6 text-sm">This action cannot be undone.</p>
@@ -177,263 +89,11 @@
                 <button id="confirm-modal-confirm-btn" class="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg font-bold text-sm shadow-lg shadow-red-500/20">Delete</button>
             </div>
         </div>
-    </div>
+    </dialog>
 
-    <div id="loading-overlay" class="loading-overlay fixed inset-0 flex flex-col items-center justify-center gap-4 hidden">
+    <div role="status" aria-label="Loading" hidden id="loading-overlay" class="loading-overlay fixed inset-0 flex flex-col items-center justify-center gap-4 hidden">
         <div class="w-10 h-10 border-4 border-surface-700 border-t-brand rounded-full animate-spin"></div>
     </div>
 
-    <script type="module">
-        import { getSupabaseClient, checkIsAdmin, clearAdminCache } from './scripts/supabaseClient.js';
-
-        let supabaseClient;
-        let currentUser;
-        let teamToDelete = null; 
-
-        try { supabaseClient = getSupabaseClient(); } catch (e) { console.error(e); }
-
-        const uiElements = {
-            loginButton: document.getElementById('login-button'),
-            userProfileSection: document.getElementById('user-profile-section'),
-            userEmailDisplay: document.getElementById('user-email-display'),
-            logoutButton: document.getElementById('logout-button'),
-            loadingOverlay: document.getElementById('loading-overlay'),
-            myTeamsContainer: document.getElementById('my-teams-container'),
-            noTeamsMessage: document.getElementById('no-teams-message'),
-            confirmModal: document.getElementById('confirm-modal'),
-            confirmModalTitle: document.getElementById('confirm-modal-title'),
-            confirmModalMessage: document.getElementById('confirm-modal-message'),
-            confirmModalConfirmBtn: document.getElementById('confirm-modal-confirm-btn'),
-            confirmModalCancelBtn: document.getElementById('confirm-modal-cancel-btn'),
-            adminNavButton: document.getElementById('nav-admin')
-        };
-
-        document.addEventListener('DOMContentLoaded', () => {
-            checkUser();
-            setupEventListeners();
-        });
-
-        function setupEventListeners() {
-            uiElements.logoutButton?.addEventListener('click', handleLogout);
-            
-            uiElements.myTeamsContainer?.addEventListener('click', (e) => {
-                // Handle button clicks (Edit/Delete)
-                const deleteBtn = e.target.closest('.delete-team-btn');
-                const editBtn = e.target.closest('.edit-team-btn');
-                
-                if (deleteBtn) {
-                    e.stopPropagation();
-                    const teamId = deleteBtn.dataset.teamId;
-                    const teamName = deleteBtn.dataset.teamName;
-                    showConfirmationModal(`Delete "${teamName}"?`, "This will permanently remove this entry from the pool.", teamId);
-                    return;
-                }
-                
-                if (editBtn) {
-                    e.stopPropagation();
-                    const teamId = editBtn.dataset.teamId;
-                    window.location.href = `index.html?edit_team_id=${teamId}`;
-                    return;
-                }
-
-                // Handle Expand/Collapse (clicking the header)
-                const header = e.target.closest('.team-header');
-                if (header) {
-                    header.parentElement.classList.toggle('team-collapsed');
-                }
-            });
-
-            uiElements.confirmModalCancelBtn?.addEventListener('click', hideConfirmationModal);
-            uiElements.confirmModalConfirmBtn?.addEventListener('click', handleConfirmDelete);
-            uiElements.confirmModal?.addEventListener('click', (e) => {
-                if (e.target === uiElements.confirmModal) hideConfirmationModal();
-            });
-        }
-
-        async function checkUser() {
-            showLoading(true);
-            if (!supabaseClient) { alert("Connection error."); showLoading(false); return; }
-
-            const { data, error } = await supabaseClient.auth.getSession();
-            if (error || !data.session) {
-                window.location.href = "login.html"; 
-            } else {
-                currentUser = data.session.user;
-                updateAuthUI(true, currentUser.email);
-                checkAdminStatus();
-                await fetchMyTeams();
-                showLoading(false);
-            }
-        }
-
-        async function checkAdminStatus() {
-            const isAdmin = await checkIsAdmin(); 
-            if (isAdmin) uiElements.adminNavButton?.classList.remove('hidden');
-        }
-
-        function updateAuthUI(loggedIn, email = '') {
-            if (loggedIn) {
-                uiElements.loginButton?.classList.add('hidden');
-                uiElements.userProfileSection?.classList.remove('hidden');
-                uiElements.userProfileSection.style.display = 'flex';
-                if (uiElements.userEmailDisplay) uiElements.userEmailDisplay.textContent = email;
-            }
-        }
-
-        async function handleLogout() {
-            showLoading(true);
-            clearAdminCache();
-            await supabaseClient.auth.signOut();
-            window.location.href = "login.html";
-        }
-
-        async function fetchMyTeams() {
-            if (!currentUser) return;
-
-            const { data, error } = await supabaseClient
-                .from('user_teams')
-                .select(`id, team_name, created_at, team_players (roster_slot, players (id, name, team, position, salary))`)
-                .order('roster_slot', { ascending: true, foreignTable: 'team_players' })
-                .eq('user_id', currentUser.id)
-                .order('created_at', { ascending: true });
-
-            if (error) {
-                console.error(error);
-                return;
-            }
-
-            if (data && data.length > 0) {
-                uiElements.noTeamsMessage.classList.add('hidden');
-                renderTeams(data);
-            } else {
-                uiElements.noTeamsMessage.classList.remove('hidden');
-            }
-        }
-
-        function renderTeams(teams) {
-            if (!uiElements.myTeamsContainer) return;
-            uiElements.myTeamsContainer.innerHTML = '';
-            
-            teams.forEach((team, index) => {
-                const teamWrapper = document.createElement('div');
-                // New styling: Glass accordion
-                teamWrapper.className = 'glass-panel rounded-xl overflow-hidden transition-all duration-300';
-                if (index !== 0) teamWrapper.classList.add('team-collapsed'); // Expand first, collapse rest
-                teamWrapper.dataset.teamId = String(team.id);
-
-                const safeTeamName = team.team_name ?? 'Unnamed Team';
-                const createdDate = team.created_at ? new Date(team.created_at).toLocaleDateString() : '';
-                
-                // Calculate total salary
-                let totalSalary = 0;
-                const sortedPlayers = Array.isArray(team.team_players)
-                    ? [...team.team_players].sort((a, b) => {
-                        // Custom sort order logic if needed, otherwise alphabetical by slot?
-                        // Actually standard roster order is nice
-                        const order = ["QB", "RB1", "RB2", "RB3", "WR1", "WR2", "WR3", "FLEX", "DST", "K"];
-                        return order.indexOf(a.roster_slot) - order.indexOf(b.roster_slot);
-                    })
-                    : [];
-                
-                sortedPlayers.forEach(tp => { if(tp.players?.salary) totalSalary += tp.players.salary; });
-
-                // HEADER
-                const header = document.createElement('div');
-                header.className = 'team-header p-4 bg-surface-800/80 hover:bg-surface-800 cursor-pointer flex justify-between items-center border-b border-white/5 select-none';
-                header.innerHTML = `
-                    <div class="flex flex-col gap-1">
-                        <div class="flex items-center gap-3">
-                            <h3 class="text-lg font-bold text-white leading-none">${safeTeamName}</h3>
-                            <span class="text-[10px] font-bold text-gray-500 uppercase bg-surface-900 px-2 py-0.5 rounded border border-white/5">${createdDate}</span>
-                        </div>
-                        <div class="flex items-center gap-2 text-xs font-mono text-gray-400">
-                            <span>SALARY:</span>
-                            <span class="text-brand font-bold">${formatToMillions(totalSalary)}</span>
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-3">
-                        <button class="edit-team-btn text-xs font-bold text-brand uppercase hover:text-white border border-brand/30 hover:bg-brand hover:border-brand hover:text-black px-3 py-1.5 rounded transition-all" 
-                                data-team-id="${team.id}">Edit</button>
-                        <button class="delete-team-btn text-gray-500 hover:text-red-500 transition-colors p-1" 
-                                data-team-id="${team.id}" data-team-name="${safeTeamName}" title="Delete Team">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                        </button>
-                        <svg class="collapse-icon w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                    </div>
-                `;
-
-                // BODY (Player List)
-                const body = document.createElement('div');
-                body.className = 'team-body bg-surface-900/50';
-                
-                const list = document.createElement('div');
-                list.className = 'divide-y divide-white/5';
-
-                sortedPlayers.forEach(tp => {
-                    const p = tp.players || {};
-                    const row = document.createElement('div');
-                    row.className = 'flex justify-between items-center px-4 py-3 hover:bg-white/5 transition-colors';
-                    row.innerHTML = `
-                        <div class="flex items-center gap-3">
-                            <span class="text-[10px] font-bold text-gray-500 w-8 uppercase">${tp.roster_slot.replace(/\d/g, '')}</span>
-                            <div>
-                                <div class="text-sm font-bold text-white">${p.name || 'Unknown'}</div>
-                                <div class="text-[10px] font-bold text-gray-500 uppercase">${p.position} • ${p.team}</div>
-                            </div>
-                        </div>
-                        <div class="text-xs font-mono text-gray-400">${formatToMillions(p.salary)}</div>
-                    `;
-                    list.appendChild(row);
-                });
-
-                body.appendChild(list);
-                teamWrapper.appendChild(header);
-                teamWrapper.appendChild(body);
-                uiElements.myTeamsContainer.appendChild(teamWrapper);
-            });
-        }
-
-        function showConfirmationModal(title, message, teamId) {
-            teamToDelete = teamId; 
-            document.getElementById('confirm-modal-title').textContent = title;
-            document.getElementById('confirm-modal-message').textContent = message;
-            uiElements.confirmModal.classList.add('active');
-        }
-
-        function hideConfirmationModal() {
-            teamToDelete = null; 
-            uiElements.confirmModal.classList.remove('active');
-        }
-
-        async function handleConfirmDelete() {
-            if (!teamToDelete) return;
-            showLoading(true);
-            const teamId = teamToDelete; 
-            hideConfirmationModal();
-
-            const { error } = await supabaseClient.from('user_teams').delete().eq('id', teamId); 
-
-            if (error) {
-                alert("Error: " + error.message);
-            } else {
-                const teamElement = document.querySelector(`[data-team-id="${teamId}"]`);
-                teamElement?.remove();
-                
-                if (!uiElements.myTeamsContainer.hasChildNodes()) {
-                    uiElements.noTeamsMessage.classList.remove('hidden');
-                }
-            }
-            showLoading(false);
-        }
-        
-        function showLoading(isLoading) {
-            if(uiElements.loadingOverlay) uiElements.loadingOverlay.classList.toggle('hidden', !isLoading);
-        }
-
-        function formatToMillions(value) {
-            if (typeof value !== 'number' || isNaN(value)) return '$0.0M';
-            return `$${(value / 1000000).toFixed(1)}M`;
-        }
-    </script>
 </body>
 </html>

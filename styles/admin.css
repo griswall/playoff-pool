@@ -1,0 +1,65 @@
+:root {
+    --card-border: rgba(255, 255, 255, 0.08);
+}
+
+body {
+    background: #020617;
+    background-image: radial-gradient(circle at 50% -20%, #1e293b 0%, #020617 60%);
+    background-attachment: fixed;
+    color: #f8fafc;
+    min-height: 100vh;
+}
+
+/* Glassmorphism */
+.glass-header {
+    background: rgba(2, 6, 23, 0.95);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+.glass-panel {
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--card-border);
+}
+
+/* Table Styling */
+.sticky-header th {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: rgba(15, 23, 42, 0.95);
+    backdrop-filter: blur(8px);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.1);
+}
+
+/* Input Styling */
+.score-input {
+    background: #020617;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #00d084;
+    font-family: 'JetBrains Mono', monospace;
+    text-align: center;
+    transition: all 0.2s ease;
+    border-radius: 6px;
+}
+.score-input:focus {
+    outline: none;
+    border-color: #00d084;
+    box-shadow: 0 0 0 2px rgba(0, 208, 132, 0.2);
+    background: #0f172a;
+}
+.score-input::placeholder { color: rgba(255,255,255,0.1); }
+
+/* Remove spinner arrows from inputs */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+input[type="number"] { -moz-appearance: textfield; }
+
+/* Custom Scrollbar matching the theme */
+.custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: rgba(2, 6, 23, 0.5); }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 4px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--brand); }
+
+/* Loading */
+.loading-overlay { background: rgba(2, 6, 23, 0.9); z-index: 9999; }

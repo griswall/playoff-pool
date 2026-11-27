@@ -2,114 +2,17 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <meta name="apple-mobile-web-app-title" content="Hurd Pool">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#020617">
     <title>Admin - Hurd NFL Playoff Pool</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                        mono: ['JetBrains Mono', 'monospace'],
-                    },
-                    colors: {
-                        brand: {
-                            DEFAULT: '#00d084',
-                            dark: '#00a366',
-                            glow: 'rgba(0, 208, 132, 0.5)'
-                        },
-                        surface: {
-                            100: '#1e293b',
-                            200: '#334155',
-                            300: '#475569',
-                            800: '#0f172a',
-                            900: '#020617',
-                        }
-                    },
-                    backgroundImage: {
-                        'main-gradient': 'radial-gradient(circle at 50% 0%, #1e293b 0%, #020617 80%)',
-                    }
-                }
-            }
-        }
-    </script>
 
-    <style>
-        :root {
-            --card-border: rgba(255, 255, 255, 0.08);
-        }
-        
-        body {
-            background: #020617;
-            background-image: radial-gradient(circle at 50% -20%, #1e293b 0%, #020617 60%);
-            background-attachment: fixed;
-            color: #f8fafc;
-            min-height: 100vh;
-        }
-
-        /* Glassmorphism */
-        .glass-header {
-            background: rgba(2, 6, 23, 0.95);
-            backdrop-filter: blur(16px);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        }
-        .glass-panel {
-            background: rgba(15, 23, 42, 0.6);
-            backdrop-filter: blur(12px);
-            border: 1px solid var(--card-border);
-        }
-
-        /* Table Styling */
-        .sticky-header th {
-            position: sticky;
-            top: 0;
-            z-index: 20;
-            background: rgba(15, 23, 42, 0.95);
-            backdrop-filter: blur(8px);
-            box-shadow: 0 1px 0 rgba(255,255,255,0.1);
-        }
-
-        /* Input Styling */
-        .score-input {
-            background: #020617;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: #00d084;
-            font-family: 'JetBrains Mono', monospace;
-            text-align: center;
-            transition: all 0.2s ease;
-            border-radius: 6px;
-        }
-        .score-input:focus {
-            outline: none;
-            border-color: #00d084;
-            box-shadow: 0 0 0 2px rgba(0, 208, 132, 0.2);
-            background: #0f172a;
-        }
-        .score-input::placeholder { color: rgba(255,255,255,0.1); }
-
-        /* Remove spinner arrows from inputs */
-        input[type="number"]::-webkit-outer-spin-button,
-        input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-        input[type="number"] { -moz-appearance: textfield; }
-
-        /* Custom Scrollbar matching the theme */
-        .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(2, 6, 23, 0.5); }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--brand); }
-
-        /* Loading */
-        .loading-overlay { background: rgba(2, 6, 23, 0.9); z-index: 9999; }
-    </style>
+    <link rel="stylesheet" href="./assets/pool.css">
+    <link rel="stylesheet" href="./assets/admin.css">
+    <script type="module" src="./assets/admin.js"></script>
 </head>
 <body class="antialiased selection:bg-brand selection:text-black">
 
@@ -131,6 +34,7 @@
             </div>
         </div>
     </header>
+    <p id="page-status" hidden role="status" aria-live="polite" class="mx-auto max-w-3xl p-3 text-amber-200"></p>
 
     <main class="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div class="glass-panel rounded-xl p-6 md:p-8 relative overflow-hidden">
@@ -147,7 +51,7 @@
                     </a>
                     <button id="save-scores-btn" class="bg-brand hover:bg-brand-dark text-black font-black text-xs uppercase tracking-wide px-6 py-2 rounded-lg shadow-[0_0_15px_rgba(0,208,132,0.3)] transition-all transform active:scale-95 flex items-center gap-2">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
-                        Save All
+                        Save changes
                     </button>
                 </div>
             </div>
@@ -170,140 +74,10 @@
         </div>
     </main>
 
-    <div id="loading-overlay" class="loading-overlay fixed inset-0 flex flex-col items-center justify-center gap-4 hidden">
+    <div role="status" aria-label="Loading" hidden id="loading-overlay" class="loading-overlay fixed inset-0 flex flex-col items-center justify-center gap-4 hidden">
         <div class="w-10 h-10 border-4 border-surface-700 border-t-brand rounded-full animate-spin"></div>
         <span class="text-brand font-bold tracking-widest text-xs uppercase">Loading Data</span>
     </div>
 
-    <script type="module">
-        import { getSupabaseClient, checkIsAdmin } from './scripts/supabaseClient.js';
-
-        let supabaseClient;
-        let allPlayers = []; 
-        let playerScores = {}; 
-
-        try { supabaseClient = getSupabaseClient(); } catch (e) { console.error(e); }
-
-        const uiElements = {
-            tableBody: document.getElementById('scores-table-body'),
-            saveButton: document.getElementById('save-scores-btn'),
-            loadingOverlay: document.getElementById('loading-overlay')
-        };
-
-        document.addEventListener('DOMContentLoaded', () => {
-            if (!supabaseClient) { alert("Supabase error."); return; }
-            showLoading(true);
-            checkUserAndLoadData();
-            uiElements.saveButton?.addEventListener('click', handleSaveScores);
-        });
-
-        async function checkUserAndLoadData() {
-            const { data, error } = await supabaseClient.auth.getSession();
-            if (error || !data.session) { window.location.href = "login.html"; return; }
-
-            const isAdmin = await checkIsAdmin();
-            if (!isAdmin) {
-                alert("Access Denied.");
-                window.location.href = "index.html";
-                return;
-            }
-            await fetchAllData();
-        }
-
-        async function fetchAllData() {
-            try {
-                let { data: playersData } = await supabaseClient.from('players').select('*').order('name', { ascending: true });
-                allPlayers = playersData;
-
-                let { data: scoresData } = await supabaseClient.from('player_scores').select('*');
-                playerScores = scoresData.reduce((acc, score) => {
-                    acc[`${score.player_id}-${score.playoff_round}`] = score.points;
-                    return acc;
-                }, {});
-
-                renderScoresTable();
-            } catch (error) {
-                console.error(error);
-                alert("Error loading data.");
-            } finally {
-                showLoading(false);
-            }
-        }
-
-        async function handleSaveScores() {
-            showLoading(true);
-            const scoreUpdates = [];
-            
-            const allInputs = uiElements.tableBody.querySelectorAll('input[data-player-id]');
-            allInputs.forEach(input => {
-                const playerId = input.dataset.playerId;
-                const round = input.dataset.round;
-                const points = input.value.trim() === '' ? null : parseFloat(input.value);
-
-                if (points === null || !isNaN(points)) {
-                    scoreUpdates.push({
-                        player_id_to_update: parseInt(playerId, 10),
-                        round_to_update: round,
-                        points_to_update: points
-                    });
-                }
-            });
-
-            if (scoreUpdates.length === 0) {
-                showLoading(false);
-                return;
-            }
-
-            try {
-                const { error } = await supabaseClient.rpc('bulk_upsert_player_scores', { scores_to_update: scoreUpdates });
-                if (error) throw error;
-                alert("Scores saved successfully!");
-                await fetchAllData();
-            } catch (error) {
-                alert("Error: " + error.message);
-            } finally {
-                showLoading(false);
-            }
-        }
-
-        function renderScoresTable() {
-            if (!uiElements.tableBody) return;
-            uiElements.tableBody.innerHTML = ''; 
-            const fragment = document.createDocumentFragment();
-            const rounds = ['WC', 'DIV', 'CONF', 'SB'];
-
-            allPlayers.forEach(player => {
-                const row = document.createElement('tr');
-                row.className = 'hover:bg-white/5 transition-colors';
-                row.innerHTML = `
-                    <td class="px-6 py-3 whitespace-nowrap">
-                        <div class="font-bold text-white">${player.name}</div>
-                        <div class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">${player.position} • ${player.team}</div>
-                    </td>
-                    ${rounds.map(round => `
-                        <td class="px-2 py-2 text-center">
-                            <input 
-                                type="number" 
-                                step="0.1"
-                                class="score-input w-20 p-2 text-sm" 
-                                data-player-id="${player.id}" 
-                                data-round="${round}"
-                                value="${playerScores[`${player.id}-${round}`] ?? ''}"
-                                placeholder="-"
-                                onwheel="this.blur()"
-                            >
-                        </td>
-                    `).join('')}
-                `;
-                fragment.appendChild(row);
-            });
-
-            uiElements.tableBody.appendChild(fragment);
-        }
-
-        function showLoading(isLoading) {
-            uiElements.loadingOverlay?.classList.toggle('hidden', !isLoading);
-        }
-    </script>
 </body>
 </html>

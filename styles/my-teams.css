@@ -1,0 +1,57 @@
+:root {
+    --card-border: rgba(255, 255, 255, 0.08);
+}
+
+body {
+    background: #020617;
+    background-image: radial-gradient(circle at 50% -20%, #1e293b 0%, #020617 60%);
+    background-attachment: fixed;
+    color: #f8fafc;
+    min-height: 100vh;
+}
+
+/* Glassmorphism */
+.glass-header {
+    background: rgba(2, 6, 23, 0.95);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+.glass-panel {
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--card-border);
+}
+
+/* Interactive Nav Links */
+.nav-link { color: #94a3b8; transition: all 0.3s ease; }
+.nav-link:hover { color: white; }
+
+/* Accordion Animation */
+.team-body {
+    max-height: 2000px; /* Arbitrary large height */
+    opacity: 1;
+    transform: translateY(0);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+}
+.team-collapsed .team-body {
+    max-height: 0;
+    opacity: 0;
+    transform: translateY(-10px);
+}
+.collapse-icon { transition: transform 0.3s ease; }
+.team-collapsed .collapse-icon { transform: rotate(-90deg); }
+
+/* Modal */
+.modal-overlay {
+    background: rgba(0,0,0,0.8);
+    backdrop-filter: blur(4px);
+    z-index: 100;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+}
+.modal-overlay.active { opacity: 1; pointer-events: auto; }
+
+/* Loading */
+.loading-overlay { background: rgba(2, 6, 23, 0.9); z-index: 9999; }

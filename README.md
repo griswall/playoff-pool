@@ -17,7 +17,7 @@ Open http://localhost:8080. The existing production configuration permits connec
 
 Vercel can deploy this directory as the repository root. `vercel.json` runs the build and serves `dist/`. The stable production hostname uses the original project's public configuration from `public-config.json` if the two variables are absent. The browser refuses that production configuration on other hostnames. Use an isolated staging project to test changes. Access control for database operations is enforced by Supabase policies and functions.
 
-Each HTML page loads locally bundled JavaScript and precompiled CSS. Filenames change with their content and can be cached for a year. Player photos load lazily from ESPN with an initial shown when an image is unavailable.
+Each HTML page loads locally bundled JavaScript and precompiled CSS. Filenames change with their content and can be cached for a year. The original Inter and JetBrains Mono faces are served from this origin on demand, with their SIL Open Font Licenses included in the output. Player photos load lazily from ESPN with an initial shown when an image is unavailable.
 
 ## Data behavior
 

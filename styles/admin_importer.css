@@ -1,0 +1,89 @@
+:root {
+    --accent: #00d084;
+    --accent-hover: #00b371;
+    --bg-deep: #0f1115;
+    --bg-medium: #1c1e24;
+    --bg-light: #292d36;
+    --text-primary: #e5e7eb;
+    --text-muted: #9ca3af;
+    --error: #ef4444;
+}
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: var(--bg-deep);
+    color: var(--text-primary);
+}
+.main-header {
+    background-color: var(--bg-medium);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    border-bottom: 1px solid var(--bg-light);
+}
+.content-section {
+    background-color: var(--bg-medium);
+    border: 1px solid var(--bg-light);
+    padding: 1.5rem;
+    border-radius: 0.75rem;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+.file-drop-area {
+    border: 2px dashed var(--bg-light);
+    border-radius: 0.5rem;
+    padding: 2rem;
+    text-align: center;
+    transition: all 0.2s;
+}
+.file-drop-area.drag-over {
+    border-color: var(--accent);
+    background-color: var(--bg-light);
+}
+.upload-button {
+    background-color: var(--accent);
+    color: #000;
+    font-weight: 700;
+    transition: background-color 0.2s;
+    border-radius: 0.5rem;
+    padding: 0.75rem 2rem;
+    font-size: 1.1rem;
+}
+.upload-button:hover {
+    background-color: var(--accent-hover);
+}
+.upload-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+.loading-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 2000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+.loading-overlay.active { display: flex; }
+.loading-spinner {
+    border: 4px solid var(--bg-light);
+    border-top: 4px solid var(--accent);
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    animation: spin 1s linear infinite;
+}
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+.log-box {
+    background-color: var(--bg-deep);
+    border: 1px solid var(--bg-light);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    font-family: monospace;
+    font-size: 0.875rem;
+    height: 200px;
+    overflow-y: auto;
+}
+.log-message { color: var(--text-primary); }
+.log-error { color: var(--error); }
+.log-success { color: var(--accent); }

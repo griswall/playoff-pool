@@ -1,0 +1,9 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+:root { --brand:#00d084; color-scheme:dark }
+[hidden] { display:none !important }
+:focus-visible { outline:2px solid #00d084 !important; outline-offset:2px }
+dialog { color:inherit; padding:0; background:transparent; border:0; max-width:min(95vw,28rem) }
+dialog::backdrop { background:rgba(0,0,0,.75) }
+@media (prefers-reduced-motion:reduce) { *,*::before,*::after { animation-duration:.01ms !important; transition-duration:.01ms !important; scroll-behavior:auto !important } }

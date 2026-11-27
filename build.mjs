@@ -2,7 +2,7 @@ import { build } from 'esbuild';
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, basename } from 'node:path';
+import { join, basename, extname } from 'node:path';
 import { createHash } from 'node:crypto';
 
 const defaults = JSON.parse(readFileSync('public-config.json', 'utf8'));
@@ -61,13 +61,23 @@ execFileSync(
   ],
   { stdio: 'inherit' },
 );
-const fingerprint = (name, bytes) => {
+const fingerprint = (name, bytes, extension = '.css') => {
   const filename =
-    name + '-' + createHash('sha256').update(bytes).digest('hex').slice(0, 12) + '.css';
+    name + '-' + createHash('sha256').update(bytes).digest('hex').slice(0, 12) + extension;
   writeFileSync(assets + '/' + filename, bytes);
   return filename;
 };
-const shared = fingerprint('pool', readFileSync(assets + '/pool.css'));
+let baseStyles = readFileSync(assets + '/pool.css', 'utf8');
+for (const filename of readdirSync('fonts')) {
+  const bytes = readFileSync(join('fonts', filename));
+  if (extname(filename) === '.woff2') {
+    const hashed = fingerprint(basename(filename, '.woff2'), bytes, '.woff2');
+    baseStyles = baseStyles.replace(filename, hashed);
+  } else {
+    writeFileSync(join(out, filename), bytes);
+  }
+}
+const shared = fingerprint('pool', baseStyles);
 rmSync(assets + '/pool.css');
 for (const page of pages) {
   const entry = Object.entries(bundle.metafile.outputs).find(

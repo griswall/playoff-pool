@@ -85,7 +85,7 @@ try {
         status: 200,
         headers: { 'Content-Security-Policy': csp },
         body: await fs.readFile(file),
-        contentType: { '.html': 'text/html', '.js': 'application/javascript', '.css': 'text/css' }[
+        contentType: { '.html': 'text/html', '.js': 'application/javascript', '.css': 'text/css', '.woff2': 'font/woff2' }[
           ext
         ],
       });
@@ -144,8 +144,15 @@ try {
   const page = await context.newPage();
   page.on('pageerror', (e) => errors.push(e.message));
   page.setDefaultTimeout(3500);
+  async function fontStatus() {
+    return page.evaluate(async () => {
+      await document.fonts.ready;
+      return Object.fromEntries([...document.fonts].map(face => [face.family.replaceAll('"', ''), face.status]));
+    });
+  }
   await page.goto(origin + '/index.html');
   await page.locator('.player-card').first().waitFor();
+  assert.deepEqual(await fontStatus(), {'Inter':'loaded','JetBrains Mono':'loaded'});
   assert.equal(await page.locator('.player-card').count(), 10);
   assert(
     !requests.some((r) =>
@@ -221,6 +228,7 @@ try {
     0,
   );
   await page.goto(origin + '/login.html');
+  assert.deepEqual(await fontStatus(), {'Inter':'loaded','JetBrains Mono':'unloaded'});
   await page.locator('#toggle-to-signup').click();
   await page.locator('#signup-email').fill('fixture@example.invalid');
   await page.locator('#signup-password').fill('test-only-1234');
